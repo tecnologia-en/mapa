@@ -1,7 +1,8 @@
 /* Enfoque Mapa - mundo Three.js sem modelos, texturas, meshes ou assets importados. */
 import * as T from "./three.module.js";
 import {createCharacter} from "./character.js";
-import {createPet} from "./pet.js";
+import {createBookshelf} from "./bookshelf.js";
+import {createIntranet} from "./intranet.js";
 
 const colors={floor:0x193644,wall:0xc4d2c8,beige:0xe9dcc0,muted:0x8fa7ad,steel:0x5d7181,wood:0x987b5f,trim:0x546b6c};
 const color=x=>new T.Color(x);
@@ -127,52 +128,10 @@ function plant(g,x,z){
   const leaf=orb(group,k%3?0x56936c:0x88ad6a,ax,1.4+(k%2)*.14,az,.19,.38,.13);leaf.rotation.z=Math.sin(a)*-.34;
  }
 }
-function bookshelf(g,x,z){
- const shelf=new T.Group();shelf.position.set(x,0,z);g.add(shelf);
- for(const h of [.35,1.17,2.0,2.8])beveled(shelf,2.15,.48,.09,0x8e8069,0,h,0);
- for(const xx of [-1.0,1.0])box(shelf,.11,2.85,.48,0x6c7166,xx,1.43,0);
- const r=random(45);
- for(let i=0;i<16;i++){
-   const h=[.43,1.25,2.1][i%3],x=-.83+Math.floor(i/3)*.28;
-   box(shelf,.12,.30+r()*.23,.32,[0x8cb2a4,0xba9b86,0x8898b9,0xd9ae75][i%4],x,h+.2,.04);
- }
-}
 function wallWithDoor(g,x,y,z,w,d,orientation,colorMaterial){
  const obj=box(g,w,3.7,d,0,x,y,z,colorMaterial.clone());
  obj.userData.isWall=true;obj.userData.axis=orientation;obj.raycast=()=>{};return obj;
 }
-// A stable, visually linked outdoor zone. Pets live in the Enfoque OS scene group,
-// so isolating that team includes its yard. No 3D files, sensors or asset fetches.
-function yardForOS(roomGroup, accent) {
-  const yard=new T.Group();yard.position.set(0,0,10.4);roomGroup.add(yard);
-  box(yard,13.25,.24,11.1,0x374b49,0,-.29,0);
-  const grass=box(yard,12.9,.05,10.8,0x5e8d70,0,-.12,0);
-  grass.material.roughness=1;
-  // Path connects the opening in the office to the pet yard.
-  beveled(yard,2.2,10.5,.035,0xc6b9a0,0,-.055,-.02);
-  for (const side of [-1,1]){
-    const x=side*6.45;
-    for(let z=-5.10;z<=5.11;z+=1.40){
-      cyl(yard,.083,.083,.89,0x9c8c6e,x,.30,z);
-    }
-    box(yard,.075,.075,10.6,0xab9977,x,.69,0);
-    box(yard,.075,.075,10.6,0xab9977,x,.38,0);
-  }
-  for(const z of [-5.35,5.35]){
-    for(let x=-6.20;x<=6.21;x+=1.28){
-      if(z===-4.55&&Math.abs(x)<1.7)continue; // gate toward the OS room
-      cyl(yard,.07,.07,.83,0xa78c69,x,.3,z);
-    }
-    box(yard,12.8,.07,.075,0xb3a17d,0,.68,z);
-  }
-  const sign=signSprite("PÁTIO DOS AGENTES","UM PET POR COMPUTADOR",accent);
-  sign.scale.set(3.35,.79,1);sign.position.set(-3.95,1.65,4.68);yard.add(sign);
-  plant(yard,-5.8,-4.45);plant(yard,5.8,-4.45);
-  // Store labels are injected next to rows at refresh.
-  const petLayer=new T.Group();yard.add(petLayer);
-  return {yard,petLayer};
-}
-
 function room(group,def,idx,actorMap,walls){
  const g=new T.Group();g.position.set(idx===0?-8.2:8.2,0,-1);g.userData.roomId=def.id;group.add(g);
  const roomW=13.25,roomD=11.25,roomY=.18;
@@ -217,20 +176,20 @@ function room(group,def,idx,actorMap,walls){
    const gl=orb(g,0xffdfb2,xx,3.49,-1.1,.38,.08,.38);
    gl.material.emissive=new T.Color(0xf7c790);gl.material.emissiveIntensity=.36;
  }
- bookshelf(g,-5.1,-2.45);plant(g,5.35,-3.58);plant(g,-5.0,3.5);
+ plant(g,-5.25,-3.85);plant(g,-5.0,3.5);
  const persons=def.people||[];
  const positions=[[0,-2.78],[-3.37,2.1],[3.45,2.1]];
  persons.forEach((p,i)=>{
    const [x,z]=positions[i]||[0,1.9]; // Allows more people in phase 2 by expanding positions later.
    const deskZ=i===0?-.85:3.15;
-   desk(g,x,deskZ,i===0,def.accent,idx?"infra":"os",i);
+   const workstation=desk(g,x,deskZ,i===0,def.accent,idx?"infra":"os",i);
+   workstation.userData.seatId=p.id;
    const character=createCharacter(T,p,{index:i+idx*3});
    character.root.position.set(x,0,z);
    character.root.rotation.y=.06;
    g.add(character.root);actorMap.set(p.id,character);
    character.setStatus(p.status||"unknown");
  });
- if(idx===0)g.userData.yard=yardForOS(g,def.accent);
  // Room floor clickable and label.
  slab.userData.roomId=def.id;
  return g;
@@ -238,135 +197,281 @@ function room(group,def,idx,actorMap,walls){
 export class World {
   constructor({mount,onSelect,onFocus,onHover}){
     this.mount=mount;this.onSelect=onSelect;this.onFocus=onFocus;this.onHover=onHover;
-    this.scene=new T.Scene();this.scene.background=new T.Color("#1c3442");
-    this.scene.fog=new T.FogExp2(0x1c3442,.011);
-    this.camera=new T.PerspectiveCamera(48,1,.09,160);this.camera.position.set(22,31,41);
+    this.scene=new T.Scene();this.scene.background=new T.Color("#1a313d");
+    this.scene.fog=new T.FogExp2(0x1a313d,.009);
+    this.camera=new T.PerspectiveCamera(48,1,.09,190);
     this.renderer=new T.WebGLRenderer({antialias:false,powerPreference:"low-power"});
-    this.renderer.setPixelRatio(Math.min(devicePixelRatio||1,1));this.renderer.outputColorSpace=T.SRGBColorSpace;
-    this.renderer.toneMapping=T.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.20;
-    this.renderer.shadowMap.enabled=false;mount.appendChild(this.renderer.domElement);
-    this.ambient=new T.HemisphereLight(0xc9e8e5,0x3b6170,2.55);this.scene.add(this.ambient);
-    const key=new T.DirectionalLight(0xffe8c4,2.55);key.position.set(-10,25,17);this.scene.add(key);
-    const fill=new T.DirectionalLight(0x9cceef,1.4);fill.position.set(10,18,-15);this.scene.add(fill);
-    const group=new T.Group();this.scene.add(group);this.group=group;
-    box(group,32.0,.8,29.8,0x0f2733,0,-.91,3.05);
-    box(group,31.9,.24,29.7,0x698584,0,-.49,3.05);
-    // Central connection corridor and reception.
-    const commons=new T.Group();group.add(commons);this.commons=commons;
-    const corridor=beveled(commons,12.0,3.45,.10,0x69817b,8.1,-.33,6.7);
-    for(let i=-5;i<=5;i++){const a=box(commons,.025,.009,3.18,0x89a3a0,8.1+i*.91,-.205,6.7);a.material.roughness=.9;}
-    const plaque=beveled(commons,4.4,1.0,.12,0x315967,8.0,-.18,6.67);
-    const sign=signSprite("ENFOQUE","CONTROL CENTER", "#a6e5b9");sign.position.set(8.0,.75,6.7);commons.add(sign);
-    this.rooms=new Map();this.actors=new Map();this.pets=new Map();this.petRowLabels=[];this.petLayoutKey=null;this.walls=[];this.isolatedRoom=null;
-    this.actorDefinitions=new Map();
-    this.cameraState={yaw:.55,pitch:.68,distance:49,target:v(0,0,2.5),wanted:v(0,0,2.5),wantedYaw:.55,wantedPitch:.68,wantedDistance:49,
-     velocityYaw:0,velocityPitch:0,panVelocity:v(0,0,0)};
-    this.pointer=new Map();this.dragging=false;this.dragDistance=0;this.lastX=0;this.lastY=0;this.dragMode="orbit";
-    this.pinchDist=0;this.selected=null;this.time=0;this.last=0;this.playing=true;this.low=true;this.animId=null;
-    this.raycaster=new T.Raycaster();this.mouse=new T.Vector2();
-    this.dom=this.renderer.domElement;this.events();this.resize();
-    this.ro=new ResizeObserver(()=>this.resize());this.ro.observe(this.mount);
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1));
+    this.renderer.outputColorSpace=T.SRGBColorSpace;
+    this.renderer.toneMapping=T.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.2;
+    this.renderer.shadowMap.enabled=false;this.mount.appendChild(this.renderer.domElement);
+    this.scene.add(new T.HemisphereLight(0xcfe6e4,0x385868,2.55));
+    const sunlight=new T.DirectionalLight(0xffecd1,2.55);
+    sunlight.position.set(-10,27,22);this.scene.add(sunlight);
+    const bounce=new T.DirectionalLight(0xa1cde3,1.25);
+    bounce.position.set(15,19,-12);this.scene.add(bounce);
+    this.group=new T.Group();this.group.userData.floorNumber=1;this.scene.add(this.group);
+    box(this.group,42,.8,27.5,0x142734,2.1,-.9,0);
+    box(this.group,41.8,.25,27.3,0x607b7d,2.1,-.48,0);
+    this.commons=new T.Group();this.group.add(this.commons);
+    const walk=beveled(this.commons,12,3.45,.11,0x688480,8.0,-.32,6.7);
+    for(let i=-5;i<=5;i++)box(this.commons,.03,.012,3.25,0x789895,8+i*.9,-.225,6.7);
+    const welcome=signSprite("ENFOQUE","CONTROL CENTER","#a6e5b9");
+    welcome.position.set(8,.9,6.7);this.commons.add(welcome);
+    this.makeStairs();
+    this.rooms=new Map();this.actors=new Map();this.intranet=null;
+    this.shelf=null;this.shelfHiddenRoomObjects=null;this.floorOneMaterials=new Map();this.walls=[];
+    this.actorDefinitions=new Map();this.hidden=new Set();this.data=null;
+    this.currentFloor=1;this.isolatedRoom=null;this.view="world";
+    this.cameraState={yaw:.56,pitch:.52,distance:49,
+      target:v(0,1.2,1.2),wanted:v(0,1.2,1.2),
+      wantedYaw:.56,wantedPitch:.52,wantedDistance:49};
+    this.pointer=new Map();this.dragging=false;this.dragDistance=0;
+    this.lastX=0;this.lastY=0;this.dragMode="orbit";this.pinchDist=0;
+    this.last=0;this.time=0;this.low=true;this.playing=true;this.raf=0;
+    this.raycaster=new T.Raycaster();this.mouse=new T.Vector2();this.lastBookHover=null;
+    this.dom=this.renderer.domElement;this.events();
+    this.ro=new ResizeObserver(()=>this.resize());this.ro.observe(mount);this.resize();
     this.loop(0);
   }
+
+  makeStairs(){
+    const stairs=new T.Group();stairs.userData.stairs=true;this.group.add(stairs);
+    const x=18.8,zStart=10.5,steps=15,h=.55,run=1.10;
+    const light=m(0xc0b6a2),rail=m(0x90adac,.48),side=m(0x556a73);
+    for(let i=0;i<steps;i++){
+      const y=(i+1)*h,z=zStart-i*run;
+      box(stairs,2.5,.17,run*.97,0,x,y,z,light);
+      box(stairs,.10,y,.10,0,x-1.1,y/2,z,side);
+      box(stairs,.10,y,.10,0,x+1.1,y/2,z,side);
+      if(i%3===0){
+        cyl(stairs,.055,.055,1.06,0,x-1.13,y+.58,z,rail);
+        cyl(stairs,.055,.055,1.06,0,x+1.13,y+.58,z,rail);
+      }
+    }
+    for(const sideDir of [-1,1]){
+      const points=[v(x+sideDir*1.13,.75,zStart+run),v(x+sideDir*1.13,8.75,zStart-steps*run)];
+      const c=new T.LineCurve3(points[0],points[1]);
+      mesh(new T.TubeGeometry(c,32,.067,7,false),rail,stairs);
+    }
+    const landing=beveled(stairs,3.5,2.25,.16,0x819c9a,x,8.27,zStart-(steps-1)*run-.9);
+    const tag=signSprite("ACESSO","ANDAR 02","#a8e1d0");
+    tag.scale.set(2.9,.85,1);tag.position.set(x,9.75,zStart-(steps-1)*run);stairs.add(tag);
+  }
+
   setData(data){
-    this.data=data;if(!this.rooms.size){
-      const defs=data.rooms?.slice(0,2)||[];
-      defs.forEach((r,index)=>{this.rooms.set(r.id,room(this.group,r,index,this.actors,this.walls));});
-      this.initialized=true;
+    this.data=data;
+    if(!this.rooms.size){
+      for(const [idx,definition]of (data.rooms||[]).slice(0,2).entries()){
+        const group=room(this.group,definition,idx,this.actors,this.walls);
+        this.rooms.set(definition.id,group);
+      }
+      const os=this.rooms.get("enfoque-os");
+      if(os){
+        this.shelf=createBookshelf();os.add(this.shelf.root);
+        this.shelf.root.userData.floorNumber=1;
+      }
+      this.intranet=createIntranet(data.intranet||[]);
+      this.scene.add(this.intranet.root);
+      this.floorOneMaterials.clear();
+      this.group.traverse(o=>{
+        const materials=o.material?(Array.isArray(o.material)?o.material:[o.material]):[];
+        for(const material of materials)if(!this.floorOneMaterials.has(material)){
+          this.floorOneMaterials.set(material,{
+            opacity:material.opacity,transparent:material.transparent,depthWrite:material.depthWrite
+          });
+        }
+      });
+      this.updateFloorVisibility();
     }
     for(const r of data.rooms||[])for(const p of r.people||[]){
       this.actorDefinitions.set(p.id,{...p,roomId:r.id,roomName:r.name});
-      const a=this.actors.get(p.id);if(a)a.setStatus(p.status||"unknown");
+      this.actors.get(p.id)?.setStatus(p.status||"unknown");
     }
-    this.updatePets(data.pets||[]);
+    this.shelf?.sync(data.computers||data.pets||[],this.hidden);
+    this.applyHidden();
   }
-  updatePets(list) {
-    if(!this.rooms.has("enfoque-os")) return;
-    const zone=this.rooms.get("enfoque-os").userData.yard;
-    if(!zone) return;
-    const incoming=Array.isArray(list)?list.slice(0,24):[];
-    const ids=new Set(incoming.map(p=>p.id));
-    for(const [id,pet]of this.pets)if(!ids.has(id)){
-      zone.petLayer.remove(pet.root);pet.dispose();this.pets.delete(id);
+
+  setHidden(hidden){
+    this.hidden=new Set(hidden||[]);
+    this.applyHidden();
+  }
+  applyHidden(){
+    for(const [id,actor]of this.actors)actor.root.visible=!this.hidden.has("person:"+id);
+    this.shelf?.sync(this.data?.computers||this.data?.pets||[],this.hidden);
+    if(this.shelf)this.shelf.root.visible=!this.hidden.has("shelf:computadores")&&
+       !this.hidden.has("room:enfoque-os") &&
+       (!this.isolatedRoom||this.isolatedRoom==="enfoque-os");
+    this.intranet?.setHidden(this.hidden);
+    this.applyRoomVisibility();
+  }
+  applyRoomVisibility(){
+    for(const [id,g]of this.rooms){
+      g.visible=!this.hidden.has("room:"+id) &&
+        (!this.isolatedRoom||id===this.isolatedRoom);
     }
-    for(const data of incoming){
-      let pet=this.pets.get(data.id);
-      if(!pet){pet=createPet(data);zone.petLayer.add(pet.root);this.pets.set(data.id,pet);}
-      pet.setStatus(data.status);
-      pet.data=data;
-    }
-    const signature=incoming.map(p=>p.owner+"|"+p.id).join(";");
-    if(this.petLayoutKey===signature)return;
-    this.petLayoutKey=signature;
-    for(const label of this.petRowLabels){
-      zone.petLayer.remove(label);label.material.map?.dispose();label.material.dispose();
-    }
-    this.petRowLabels=[];
-    const grouped=new Map();
-    for(const pet of incoming){if(!grouped.has(pet.owner))grouped.set(pet.owner,[]);grouped.get(pet.owner).push(pet);}
-    let row=0;
-    for(const [owner,pets]of grouped){
-      for(let offset=0;offset<pets.length;offset+=4){
-        if(row>=6)break;
-        const segment=pets.slice(offset,offset+4),z=-3.80+row*1.68;
-        const sign=signSprite(owner,"LOJA / EMPRESA","#ddf1ba");
-        sign.scale.set(2.0,.55,1);sign.position.set(-4.95,.74,z);
-        zone.petLayer.add(sign);this.petRowLabels.push(sign);
-        for(let i=0;i<segment.length;i++){
-          const pet=this.pets.get(segment[i].id);
-          pet.root.position.set(-2.90+i*1.85,-.10,z+.10);
-        }
-        row++;
-      }
+    this.commons.visible=!this.isolatedRoom;
+    if(this.intranet){
+      const upperHidden=this.hidden.has("floor:2");
+      this.intranet.root.visible=!upperHidden&&!this.isolatedRoom;
     }
   }
-  isolateRoom(id) {
-    if(id && !this.rooms.has(id))return;
-    this.isolatedRoom=id||null;
-    for(const [key,group]of this.rooms)group.visible=!id||key===id;
-    if(this.commons)this.commons.visible=!id;
-    if(id){
-      const room=this.rooms.get(id),s=this.cameraState;
-      s.wanted.set(room.position.x,1.25,room.position.z+(id==="enfoque-os"?3.6:0));
-      s.wantedDistance=id==="enfoque-os"?35:24;
-    }else this.reset();
+  updateFloorVisibility(){
+    if(!this.intranet)return;
+    const ghostUpper=this.currentFloor===1;
+    this.intranet.setGhost(ghostUpper);
+    // O andar inferior continua reconhecível ao explorar o segundo.
+    const fade=this.currentFloor===2;
+    for(const [material,original] of this.floorOneMaterials){
+      material.opacity=fade?Math.min(.19,original.opacity):original.opacity;
+      material.transparent=fade?true:original.transparent;
+      material.depthWrite=fade?false:original.depthWrite;
+      material.needsUpdate=true;
+    }
+    this.applyRoomVisibility();
   }
-  findRoom(id){return this.data?.rooms?.find(r=>r.id===id);}
-  fov(val){this.camera.fov=Math.max(35,Math.min(70,Number(val)||48));this.camera.updateProjectionMatrix();}
-  setQuality(high){this.low=!high;this.renderer.setPixelRatio(Math.min(devicePixelRatio||1,high?1.4:1.0));this.resize();}
-  reset(){const s=this.cameraState;s.wanted.set(0,0,2.5);s.wantedYaw=.55;s.wantedPitch=.68;s.wantedDistance=49;this.selected=null;}
-  focus(kind,id){
+  setFloor(number){
+    const n=Number(number);
+    if(n!==1&&n!==2)return;
+    if(this.view==="shelf")this.restoreShelfRoom();
+    this.view="world";this.isolatedRoom=null;this.currentFloor=n;
+    this.updateFloorVisibility();
+    this.reset();
+  }
+  goUpFloor(){if(this.currentFloor<2)this.setFloor(2);}
+  goDownFloor(){if(this.view==="shelf"){this.exitShelf();return;}if(this.currentFloor>1)this.setFloor(1);}
+  reset(){
     const s=this.cameraState;
-    if(kind==="room"){
-      const room=this.rooms.get(id);if(!room)return;
-      s.wanted.set(room.position.x,1.0,room.position.z+(id==="enfoque-os"?3.2:0));s.wantedDistance=id==="enfoque-os"?32:22;
-    }else if(kind==="pet"){
-      const pet=this.pets.get(id);if(!pet)return;
-      const pos=new T.Vector3();pet.root.getWorldPosition(pos);
-      s.wanted.copy(pos).add(v(0,1,0));s.wantedDistance=11.5;
+    if(this.currentFloor===2){
+      s.wanted.set(0,9.8,0);s.wantedDistance=43;s.wantedYaw=.52;s.wantedPitch=.62;
     }else{
-      const actor=this.actors.get(id);if(!actor)return;
-      const pos=new T.Vector3();actor.root.getWorldPosition(pos);
-      s.wanted.copy(pos).add(v(0,1.7,0));s.wantedDistance=10.2;
+      s.wanted.set(0,1.2,1.2);s.wantedDistance=49;s.wantedYaw=.56;s.wantedPitch=.52;
     }
   }
-  resize(){const width=Math.max(this.mount.clientWidth,1),height=Math.max(this.mount.clientHeight,1);
-    this.camera.aspect=width/height;this.camera.updateProjectionMatrix();this.renderer.setSize(width,height,false);}
+  isolateRoom(id){
+    if(id&&this.rooms.has(id)){
+      this.setFloor(1);this.isolatedRoom=id;this.applyRoomVisibility();
+      this.focus("room",id);
+    }else{
+      this.isolatedRoom=null;this.applyRoomVisibility();this.reset();
+    }
+  }
+  clearRoomForShelf(){
+    if(this.shelfHiddenRoomObjects)return;
+    const os=this.rooms.get("enfoque-os");
+    if(!os||!this.shelf)return;
+    this.shelfHiddenRoomObjects=new Map();
+    for(const child of os.children){
+      if(child===this.shelf.root)continue;
+      this.shelfHiddenRoomObjects.set(child,child.visible);
+      child.visible=false;
+    }
+  }
+  restoreShelfRoom(){
+    if(!this.shelfHiddenRoomObjects)return;
+    for(const [child,wasVisible]of this.shelfHiddenRoomObjects)child.visible=wasVisible;
+    this.shelfHiddenRoomObjects=null;
+  }
+  enterShelf(){
+    if(!this.shelf)return;
+    if(this.hidden.has("shelf:computadores"))return;
+    this.currentFloor=1;
+    this.isolatedRoom="enfoque-os";
+    this.view="shelf";
+    this.updateFloorVisibility();
+    this.clearRoomForShelf();
+    this.shelf.root.visible=true;
+    const pt=this.shelf.root.getWorldPosition(new T.Vector3());
+    const s=this.cameraState;
+    s.wanted.copy(pt).add(v(0,2.0,0));
+    s.wantedYaw=0;s.wantedPitch=.035;s.wantedDistance=7.2;
+  }
+  exitShelf(){
+    if(this.view!=="shelf")return;
+    this.restoreShelfRoom();
+    this.view="world";
+    this.isolatedRoom=null;this.applyRoomVisibility();
+    this.applyHidden();
+    this.focus("room","enfoque-os");
+  }
+  focus(kind,id){
+    if(this.view==="shelf"&&!["shelf","store","computer"].includes(kind))this.exitShelf();
+    if(kind==="shelf"||kind==="store"||kind==="computer"){
+      this.enterShelf();return;
+    }
+    if(kind==="department"){
+      this.setFloor(2);
+      const sector=this.intranet?.sectors.get(id);
+      if(sector){
+        const pt=sector.getWorldPosition(new T.Vector3());
+        this.cameraState.wanted.copy(pt).add(v(0,1.5,0));
+        this.cameraState.wantedDistance=16;
+      }
+      return;
+    }
+    if(kind==="page"){
+      this.setFloor(2);
+      const pg=this.intranet?.pages.get(id);
+      if(pg){
+        const pt=pg.position.getWorldPosition(new T.Vector3());
+        this.cameraState.wanted.copy(pt).add(v(0,1.4,0));
+        this.cameraState.wantedDistance=9.6;
+        this.cameraState.wantedPitch=.71;
+      }
+      return;
+    }
+    if(kind==="room"){
+      if(this.currentFloor!==1)this.setFloor(1);
+      const group=this.rooms.get(id);if(!group)return;
+      const pt=group.getWorldPosition(new T.Vector3());
+      this.cameraState.wanted.copy(pt).add(v(0,1.2,0));
+      this.cameraState.wantedDistance=21;
+      return;
+    }
+    if(kind==="person"||kind==="seat"){
+      if(this.currentFloor!==1)this.setFloor(1);
+      const actor=this.actors.get(id);if(!actor)return;
+      const pt=actor.root.getWorldPosition(new T.Vector3());
+      this.cameraState.wanted.copy(pt).add(v(0,1.7,0));
+      this.cameraState.wantedDistance=10;
+    }
+  }
+  fov(val){this.camera.fov=Math.max(35,Math.min(70,Number(val)||48));this.camera.updateProjectionMatrix();}
+  setQuality(high){this.low=!high;this.renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,high?1.4:1));this.resize();}
+  resize(){
+    const w=Math.max(this.mount.clientWidth,1),h=Math.max(this.mount.clientHeight,1);
+    this.camera.aspect=w/h;this.camera.updateProjectionMatrix();this.renderer.setSize(w,h,false);
+  }
   eventPick(e){
+    if(!this.data)return null;
     const rect=this.dom.getBoundingClientRect();
     this.mouse.set((e.clientX-rect.left)/rect.width*2-1,-((e.clientY-rect.top)/rect.height*2-1));
     this.raycaster.setFromCamera(this.mouse,this.camera);
-    const hits=this.raycaster.intersectObjects([this.group],true);
-    for(const h of hits){
-      let obj=h.object;
+    const targets=this.view==="shelf"?[this.shelf?.root].filter(Boolean):
+      this.currentFloor===2?[this.intranet.root]:[this.group];
+    const hits=this.raycaster.intersectObjects(targets,true);
+    for(const hit of hits){
+      let obj=hit.object;
       while(obj){
-        if(obj.userData.petId)return{kind:"pet",id:obj.userData.petId};
-        if(obj.userData.personId)return{kind:"person",id:obj.userData.personId};
-        if(obj.userData.roomId)return{kind:"room",id:obj.userData.roomId};
+        const u=obj.userData;
+        if(u.computerId)return{kind:"computer",id:u.computerId};
+        if(u.storeId)return{kind:"store",id:u.storeId};
+        if(u.pageId)return{kind:"page",id:u.pageId};
+        if(u.personId)return{kind:"person",id:u.personId};
+        if(u.seatId)return{kind:"seat",id:u.seatId};
+        if(u.shelfTarget)return{kind:"shelf",id:"computadores"};
+        if(u.departmentId)return{kind:"department",id:u.departmentId};
+        if(u.roomId)return{kind:"room",id:u.roomId};
         obj=obj.parent;
       }
     }
     return null;
+  }
+  setHovered(item){
+    if(!this.shelf)return;
+    const id=item?.kind==="computer"?item.id:null;
+    if(id===this.lastBookHover)return;
+    this.lastBookHover=id;this.shelf.hover(id);
   }
   events(){
     const canvas=this.dom;
@@ -378,70 +483,85 @@ export class World {
       canvas.setPointerCapture(e.pointerId);
     });
     canvas.addEventListener("pointermove",e=>{
-      if(!this.dragging||!this.pointer.has(e.pointerId)){if(this.onHover&&e.pointerType==="mouse")this.onHover(this.eventPick(e));return;}
-      const dx=e.clientX-this.lastX,dy=e.clientY-this.lastY;this.lastX=e.clientX;this.lastY=e.clientY;
-      this.dragDistance+=Math.abs(dx)+Math.abs(dy);
-      const s=this.cameraState;
-      if(this.pointer.size===2){
-        this.pointer.get(e.pointerId).x=e.clientX;this.pointer.get(e.pointerId).y=e.clientY;
-        const arr=[...this.pointer.values()],dist=Math.hypot(arr[0].x-arr[1].x,arr[0].y-arr[1].y);
-        if(this.pinchDist>0)s.wantedDistance=Math.max(7,Math.min(69,s.wantedDistance*this.pinchDist/dist));
-        this.pinchDist=dist;
+      if(!this.dragging||!this.pointer.has(e.pointerId)){
+        if(e.pointerType==="mouse"){
+          const pick=this.eventPick(e);this.setHovered(pick);this.onHover?.(pick,e.clientX,e.clientY);
+        }
         return;
       }
+      const dx=e.clientX-this.lastX,dy=e.clientY-this.lastY;
+      this.lastX=e.clientX;this.lastY=e.clientY;this.dragDistance+=Math.abs(dx)+Math.abs(dy);
+      if(this.pointer.size===2){
+        this.pointer.get(e.pointerId).x=e.clientX;this.pointer.get(e.pointerId).y=e.clientY;
+        const pts=[...this.pointer.values()],dist=Math.hypot(pts[0].x-pts[1].x,pts[0].y-pts[1].y);
+        if(this.view!=="shelf"&&this.pinchDist>0){
+          this.cameraState.wantedDistance=Math.max(6,Math.min(85,this.cameraState.wantedDistance*this.pinchDist/dist));
+        }
+        this.pinchDist=dist;return;
+      }
+      if(this.view==="shelf")return; // Estante frontal: nenhuma rotação ou deslocamento.
+      const s=this.cameraState;
       if(this.dragMode==="pan")this.pan(dx,dy);
-      else{s.wantedYaw-=dx*.009;s.wantedPitch=Math.max(.14,Math.min(1.35,s.wantedPitch+dy*.007));}
+      else{s.wantedYaw-=dx*.008;s.wantedPitch=Math.max(.12,Math.min(1.42,s.wantedPitch+dy*.006));}
     });
     canvas.addEventListener("pointerup",e=>{
-      if(this.dragDistance<7&&this.pointer.size===1&&e.button!==2){const picked=this.eventPick(e);if(picked)this.onSelect?.(picked);}
-      this.pointer.delete(e.pointerId);if(this.pointer.size<2)this.pinchDist=0;
+      if(this.dragDistance<8&&this.pointer.size===1&&e.button!==2){
+        const chosen=this.eventPick(e);
+        if(chosen)this.onSelect?.(chosen);
+      }
+      this.pointer.delete(e.pointerId);
+      if(this.pointer.size<2)this.pinchDist=0;
       this.dragging=this.pointer.size>0;
     });
     canvas.addEventListener("pointercancel",e=>{this.pointer.delete(e.pointerId);this.dragging=false;this.pinchDist=0;});
-    canvas.addEventListener("dblclick",e=>{const p=this.eventPick(e);if(p){this.focus(p.kind,p.id);this.onFocus?.(p);}});
-    canvas.addEventListener("wheel",e=>{e.preventDefault();const s=this.cameraState;s.wantedDistance=Math.max(7,Math.min(69,s.wantedDistance*(e.deltaY>0?1.09:.91)));},{passive:false});
+    canvas.addEventListener("dblclick",e=>{
+      const item=this.eventPick(e);if(item){this.focus(item.kind,item.id);this.onFocus?.(item);}
+    });
+    canvas.addEventListener("wheel",e=>{
+      e.preventDefault();
+      if(this.view==="shelf"){this.shelf?.scroll(e.deltaY);return;}
+      const s=this.cameraState;s.wantedDistance=Math.max(6,Math.min(85,s.wantedDistance*(e.deltaY>0?1.09:.91)));
+    },{passive:false});
   }
   pan(dx,dy){
-    const s=this.cameraState,y=s.yaw;
-    const right=v(Math.cos(y),0,-Math.sin(y));
-    const forward=v(Math.sin(y),0,Math.cos(y));
-    const amount=s.distance*.00175;
+    const s=this.cameraState;
+    const right=v(Math.cos(s.yaw),0,-Math.sin(s.yaw));
+    const forward=v(Math.sin(s.yaw),0,Math.cos(s.yaw));
+    const amount=s.distance*.0017;
     s.wanted.addScaledVector(right,-dx*amount).addScaledVector(forward,-dy*amount);
-    s.wanted.x=Math.max(-18,Math.min(18,s.wanted.x));s.wanted.z=Math.max(-12,Math.min(12,s.wanted.z));
+    s.wanted.x=Math.max(-21,Math.min(22,s.wanted.x));
+    s.wanted.z=Math.max(-16,Math.min(17,s.wanted.z));
   }
   wallsForCamera(){
-    const cam=this.camera.position;
+    if(this.currentFloor!==1)return;
+    const camera=this.camera.position;
     for(const wall of this.walls){
-      const parent=wall.parent;
-      const center=parent.getWorldPosition(new T.Vector3());
+      const center=wall.parent.getWorldPosition(new T.Vector3());
       const a=wall.userData.axis;
-      let fade=false;
-      if(a==="z+")fade=cam.z>center.z+1;
-      else if(a==="z-")fade=cam.z<center.z-1;
-      else if(a==="x+")fade=cam.x>center.x+1;
-      else if(a==="x-")fade=cam.x<center.x-1;
-      wall.material.opacity+=( (fade?.13:.87)-wall.material.opacity)*.13;
+      const fade=a==="z+"?camera.z>center.z+1:a==="z-"?camera.z<center.z-1:a==="x+"?camera.x>center.x+1:camera.x<center.x-1;
+      wall.material.opacity+=((fade?.12:.80)-wall.material.opacity)*.14;
     }
   }
-  highlight(kind,id){
-    for(const [aid,a]of this.actors){const f=kind==="person"&&aid===id;a.root.scale.setScalar(f?1.055:1);}
-  }
-  loop(ms){
+  loop(timeMs){
     if(!this.playing)return;
-    this.animId=requestAnimationFrame(t=>this.loop(t));
-    if(document.hidden)return;
-    if(ms-this.last<(this.low?33:17))return;
-    const delta=Math.min(.05,Math.max(0,(ms-this.last)/1000));this.last=ms;this.time+=delta;
-    const s=this.cameraState,damp=1-Math.exp(-delta*8);
-    s.yaw+=(s.wantedYaw-s.yaw)*damp;s.pitch+=(s.wantedPitch-s.pitch)*damp;
-    s.distance+=(s.wantedDistance-s.distance)*damp;s.target.lerp(s.wanted,damp);
-    const radius=s.distance,cp=Math.cos(s.pitch),sp=Math.sin(s.pitch);
-    this.camera.position.set(s.target.x+radius*cp*Math.sin(s.yaw),s.target.y+radius*sp,s.target.z+radius*cp*Math.cos(s.yaw));
+    this.raf=requestAnimationFrame(ms=>this.loop(ms));
+    if(document.hidden||timeMs-this.last<(this.low?33:18))return;
+    const dt=Math.min(.05,Math.max(.001,(timeMs-this.last)/1000));this.last=timeMs;this.time+=dt;
+    const s=this.cameraState,blend=1-Math.exp(-dt*7.5);
+    s.yaw+=(s.wantedYaw-s.yaw)*blend;s.pitch+=(s.wantedPitch-s.pitch)*blend;
+    s.distance+=(s.wantedDistance-s.distance)*blend;s.target.lerp(s.wanted,blend);
+    const cp=Math.cos(s.pitch),sp=Math.sin(s.pitch);
+    this.camera.position.set(s.target.x+s.distance*cp*Math.sin(s.yaw),
+      s.target.y+s.distance*sp,
+      s.target.z+s.distance*cp*Math.cos(s.yaw));
     this.camera.lookAt(s.target);
     this.wallsForCamera();
-    for(const a of this.actors.values())a.update(this.time);
-    for(const pet of this.pets.values())pet.update(this.time);
+    if(this.currentFloor===1)for(const actor of this.actors.values())if(actor.root.visible)actor.update(this.time);
+    if(this.currentFloor===2)this.intranet?.update(this.time);
     this.renderer.render(this.scene,this.camera);
   }
-  dispose(){this.playing=false;cancelAnimationFrame(this.animId);this.ro.disconnect();this.renderer.dispose();this.dom.remove();}
+  dispose(){
+    this.playing=false;cancelAnimationFrame(this.raf);this.ro.disconnect();
+    this.shelf?.dispose();this.renderer.dispose();this.dom.remove();
+  }
 }

@@ -1,61 +1,87 @@
-"""Validação de YAML, representação procedural e modo seguro."""
-from pathlib import Path
+"""Testes de catálogo, segurança, andares e ocultação visual local."""
 import unittest
+from pathlib import Path
+
 import yaml
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT=Path(__file__).resolve().parent.parent
 
-class MapaConfigTests(unittest.TestCase):
-    def test_rooms_and_people(self):
-        data = yaml.safe_load((ROOT / "config/projects.yaml").read_text(encoding="utf-8"))
-        self.assertEqual(len(data["rooms"]), 2)
-        self.assertEqual(sum(len(r["people"]) for r in data["rooms"]), 6)
-        self.assertTrue(all(p.get("check_id") for r in data["rooms"] for p in r["people"]))
+class MapaTests(unittest.TestCase):
+    def source(self,name):
+        return (ROOT/name).read_text(encoding="utf-8")
 
-    def test_no_character_boxes(self):
-        js = (ROOT / "web/assets/character.js").read_text(encoding="utf-8")
-        self.assertNotIn("BoxGeometry(", js)
-        for required in ("LatheGeometry", "CapsuleGeometry", "ExtrudeGeometry", "TubeGeometry"):
-            self.assertIn(required, js)
+    def test_rooms(self):
+        rooms=yaml.safe_load(self.source("config/projects.yaml"))["rooms"]
+        self.assertEqual(len(rooms),2)
+        self.assertEqual(sum(len(x["people"]) for x in rooms),6)
 
-    def test_automatic_scene_and_team_focus(self):
-        html = (ROOT / "web/index.html").read_text(encoding="utf-8")
-        js = (ROOT / "web/assets/main.js").read_text(encoding="utf-8")
-        world = (ROOT / "web/assets/world.js").read_text(encoding="utf-8")
-        self.assertNotIn('id="welcome"', html)
-        self.assertIn('id="sidebarToggle"', html)
-        self.assertIn('id="focusTeamBtn"', html)
-        self.assertIn("boot();", js)
-        self.assertIn("isolateRoom(id)", world)
+    def test_all_intranet_pages(self):
+        from backend.app import intranet_catalogue
+        deps=intranet_catalogue()
+        self.assertEqual(len(deps),8)
+        self.assertEqual(sum(len(d["pages"]) for d in deps),60)
+        for dep in deps:
+            for pg in dep["pages"]:
+                self.assertTrue(pg["path"].startswith("/"))
+                self.assertTrue(pg["path"].endswith(".html"))
 
-    def test_pets_are_procedural(self):
-        source = (ROOT / "web/assets/pet.js").read_text(encoding="utf-8")
-        self.assertNotIn("BoxGeometry(", source)
-        self.assertIn("CapsuleGeometry", source)
-        self.assertIn("TubeGeometry", source)
-        self.assertIn("offline", source)
+    def test_character_body_procedural(self):
+        text=self.source("web/assets/character.js")
+        self.assertNotIn("BoxGeometry(",text)
+        for term in ("LatheGeometry","CapsuleGeometry","TubeGeometry"):
+            self.assertIn(term,text)
 
-    def test_pet_sanitization(self):
-        from backend.app import safe_pets
-        pets = safe_pets([
-            {"id": "pet-abc123", "owner": "Ilha Plaza", "name": "Salão", "status": "online", "token": "SECRET"},
-            {"id": "pet-abc123", "owner": "Centro", "name": "Duplicado", "status": "offline"},
-            {"id": "raw-device-id", "status": "online"},
+    def test_shelf_and_floors(self):
+        text=self.source("web/assets/world.js")
+        for term in ("createIntranet(","createBookshelf(","setFloor(number)","goUpFloor()","goDownFloor()","enterShelf()","exitShelf()","makeStairs()"):
+            self.assertIn(term,text)
+        shelf=self.source("web/assets/bookshelf.js")
+        self.assertIn('userData.computerId',shelf)
+        self.assertIn('userData.storeId',shelf)
+        self.assertIn('caption.visible=false',shelf)
+        self.assertIn('this.view==="shelf"',text)
+
+    def test_ui_collapsed_and_one_scroll(self):
+        html=self.source("web/index.html")
+        js=self.source("web/assets/main.js")
+        css=self.source("web/assets/style.css")
+        self.assertIn("left-collapsed right-collapsed",html)
+        self.assertIn('data-floor="1"',html)
+        self.assertIn('data-floor="2"',html)
+        for key in ("ArrowUp","ArrowDown","localStorage","hiddenDetails"):
+            self.assertIn(key,js+html)
+        self.assertIn("overflow-y:auto",css)
+        self.assertIn("scrollbar-color",css)
+        self.assertNotIn('id="welcome"',html)
+        self.assertIn('boot();',js)
+
+    def test_hide_does_not_call_remote_write(self):
+        text=self.source("web/assets/main.js")
+        self.assertIn('window.localStorage.setItem',text)
+        self.assertIn('state.world?.setHidden(state.hidden)',text)
+        self.assertNotIn('fetch("/api/hide"',text)
+        self.assertNotIn('fetch("/api/move"',text)
+        self.assertIn('workstation.userData.seatId',self.source("web/assets/world.js"))
+
+    def test_computer_sanitization(self):
+        from backend.app import safe_computers
+        devices=safe_computers([
+          {"id":"pet-hashed123","name":"Caixa 3","owner":"Ilha Plaza","status":"online","secret":"FORBIDDEN"},
+          {"id":"pet-hashed123","name":"Duplicado","owner":"Centro","status":"offline"},
+          {"id":"raw-id","name":"Sem permissão","status":"online"}
         ])
-        self.assertEqual(len(pets), 1)
-        self.assertEqual(pets[0]["status"], "online")
-        self.assertEqual(pets[0]["owner"], "Ilha Plaza")
-        self.assertNotIn("token", pets[0])
+        self.assertEqual(len(devices),1)
+        self.assertEqual(devices[0]["owner"],"Ilha Plaza")
+        self.assertNotIn("secret",devices[0])
 
-    def test_local_only(self):
-        py = (ROOT / "backend/app.py").read_text(encoding="utf-8")
-        self.assertIn('host="127.0.0.1"', py)
+    def test_read_only_local_server(self):
+        app=self.source("backend/app.py")
+        self.assertIn('host="127.0.0.1"',app)
+        self.assertIn('"canControl": False',app)
+        self.assertNotIn('@app.post(',app)
 
-    def test_no_autostart(self):
-        bat = (ROOT / "Iniciar Mapa.bat").read_text(encoding="utf-8").lower()
-        self.assertNotIn("schtasks", bat)
-        self.assertNotIn("startup", bat)
-        self.assertTrue((ROOT / "web/assets/three.module.js").is_file())
-
-if __name__ == "__main__":
-    unittest.main()
+    def test_manual_start(self):
+        bat=self.source("Iniciar Mapa.bat").lower()
+        self.assertNotIn("schtasks",bat)
+        self.assertNotIn("startup",bat)
+        self.assertTrue((ROOT/"web/assets/three.module.js").is_file())

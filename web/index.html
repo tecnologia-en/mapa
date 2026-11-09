@@ -2,58 +2,113 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#0f1724">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23162e32'/%3E%3Ctext x='32' y='46' text-anchor='middle' font-size='43' font-family='serif' fill='%23adebbd'%3EE%3C/text%3E%3C/svg%3E">
-  <meta name="description" content="Enfoque Mapa — Control Center 3D">
-  <title>Mapa | Enfoque Control Center</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0e1924">
+  <meta name="description" content="Mapa 3D de projetos e páginas da Enfoque">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='15' fill='%23193238'/%3E%3Ctext x='32' y='46' text-anchor='middle' font-size='43' font-family='serif' fill='%23b5ecc7'%3EE%3C/text%3E%3C/svg%3E">
+  <title>Mapa — Control Center</title>
   <link rel="stylesheet" href="/assets/style.css">
 </head>
 <body>
 <div class="shell">
   <header class="topbar">
-    <div class="branding"><span class="brand-icon">E<span class="brand-dot"></span></span><div><strong>ENFOQUE</strong><small>CONTROL CENTER <em>3D</em></small></div></div>
-    <div class="top-tabs"><span class="top-tab active">◈ &nbsp; Mapa ao vivo</span><button id="headerOverview" class="top-tab top-button" title="Mostrar todas as equipes">⌂ &nbsp; Visão geral</button></div>
-    <div class="head-right"><span class="version-label">MAPA · V0.2</span><span class="head-pill" id="connectionPill"><i></i><span id="connectionText">Conectando...</span></span></div>
+    <div class="brand"><span class="brand-icon">E</span><div><strong>ENFOQUE</strong><small>CONTROL CENTER <em>3D</em></small></div></div>
+    <div class="top-center"><span class="top-label">MAPA</span><span class="top-slash">/</span><strong id="floorTitle">1º ANDAR</strong><span class="top-sep"></span><span id="modeTitle">Sistemas & Infraestrutura</span></div>
+    <div id="connectionPill" class="connection"><span class="connection-dot"></span><span id="connectionText">Conectando...</span></div>
   </header>
 
-  <main id="workspace" class="workspace">
-    <aside class="left-panel" id="leftPanel">
-      <div class="sidebar-toolbar"><button id="sidebarToggle" class="sidebar-toggle" type="button" aria-label="Recolher barra lateral" aria-expanded="true" title="Recolher ou expandir menu">☰</button><span class="sidebar-toolbar-copy"><strong>EXPLORADOR</strong><small>Salas & equipes</small></span><span class="sidebar-toolbar-pill">LIVE</span></div>
-      <div class="side-title"><span class="small-label">SEUS AMBIENTES</span><h2>Explorar escritório<span class="glow-dot">.</span></h2><p>Clique numa sala ou funcionário.</p></div>
-      <div class="search-wrap"><span aria-hidden="true">⌕</span><input type="search" id="search" placeholder="Buscar personagem…" aria-label="Buscar personagem"><kbd>/</kbd></div>
-      <div class="mini-heading"><span>SALAS DO PRÉDIO</span><span id="roomCount">02</span></div>
-      <div id="roomNav" class="room-nav"></div>
-      <div class="side-separator"></div>
-      <div class="mini-heading"><span>EQUIPE</span><span id="personCount">06</span></div>
-      <div id="personNav" class="person-nav"></div>
-      <details class="pets-accordion" id="petsAccordion"><summary><span class="pet-nav-icon">♧</span><span class="pet-nav-label">PETS DOS COMPUTADORES</span><b id="petCount">0</b></summary><div id="petGroupList" class="pet-group-list"></div></details>
-      <div class="left-foot"><span class="live-mark">◌</span><span id="leftFootText">Monitoramento somente leitura</span></div>
+  <main class="workspace left-collapsed right-collapsed" id="workspace">
+    <aside class="left-panel" id="leftPanel" aria-label="Navegação">
+      <div class="panel-head">
+        <button class="panel-toggle" id="leftToggle" type="button" aria-expanded="false" aria-label="Abrir menu esquerdo" title="Expandir menu">☰</button>
+        <div class="panel-heading"><strong>NAVEGAR</strong><small>Mapa de projetos</small></div>
+      </div>
+      <div class="floor-picker" aria-label="Selecionar andar">
+        <button type="button" class="floor-option active" data-floor="1" title="Ir para o 1º andar">
+          <span class="floor-icon">1</span><span class="nav-label">1º andar <small>Sistemas</small></span>
+        </button>
+        <button type="button" class="floor-option" data-floor="2" title="Ir para o 2º andar">
+          <span class="floor-icon">2</span><span class="nav-label">2º andar <small>Intranet</small></span>
+        </button>
+      </div>
+      <div class="left-expanded">
+        <div class="nav-divider"></div>
+        <button type="button" id="shelfNav" class="nav-special"><span class="nav-special-icon">▤</span><span>Estante de computadores</span><span class="nav-arrow">›</span></button>
+        <details class="nav-section" id="roomsDetails" open>
+          <summary>Salas do prédio <b id="roomCount">2</b></summary>
+          <div class="nav-entries" id="roomNav"></div>
+        </details>
+        <details class="nav-section" id="staffDetails">
+          <summary>Equipe <b id="personCount">6</b></summary>
+          <div class="nav-entries" id="personNav"></div>
+        </details>
+        <details class="nav-section" id="intranetDetails">
+          <summary>Páginas da intranet <b id="pageCount">0</b></summary>
+          <div class="nav-entries" id="departmentNav"></div>
+        </details>
+        <details class="nav-section hidden-section" id="hiddenDetails">
+          <summary>Itens ocultos <b id="hiddenCount">0</b></summary>
+          <div class="nav-entries" id="hiddenNav"></div>
+        </details>
+        <div class="privacy-line"><span class="mini-status"></span> Ocultação salva apenas neste navegador</div>
+      </div>
+      <div class="left-mini" aria-hidden="true"><span>◈</span><span>▤</span><span>⋮</span></div>
     </aside>
 
-    <div class="world-container">
-      <div id="scene" class="world-scene" aria-label="Escritório 3D navegável"></div>
-      <div class="world-head"><div><span class="small-label">AMBIENTE TRIDIMENSIONAL</span><h2 id="worldTitle">Escritório Enfoque</h2></div><div class="world-head-actions"><button id="exitFocusBtn" class="exit-focus-btn" hidden>↩ &nbsp; Voltar ao prédio</button><div class="scene-tag">✦ &nbsp; VISUALIZAÇÃO INTERATIVA</div></div></div>
-      <div id="tooltip" class="world-tooltip" hidden></div>
-      <div id="launchError" class="launch-error" role="alert" hidden><strong>Não foi possível carregar o escritório 3D.</strong><p id="launchErrorText"></p><button type="button" id="retryLaunchBtn">Tentar novamente</button></div>
-      <div class="scene-bottom"><div class="controls-help"><span>◌ Arraste para orbitar</span><span>⊕ Scroll / pinça para zoom</span><span>⌗ Botão direito para mover</span><span>↗ Duplo clique para focar</span></div><button id="reset" class="reset-btn" title="Centralizar câmera">↺ Redefinir</button></div>
-      <div class="scene-loading" id="sceneLoading" hidden><span class="loading-pulse"></span><strong>Montando seu escritório...</strong><small>Geometria 100% procedural</small></div>
-    </div>
+    <section class="scene-area" aria-label="Mapa tridimensional">
+      <div id="scene" class="scene-root"></div>
+      <div class="scene-head">
+        <div><span class="scene-kicker">VISUALIZAÇÃO 3D</span><h1 id="sceneTitle">Primeiro andar</h1></div>
+        <div class="scene-actions">
+          <button type="button" id="shelfExit" class="shelf-exit" hidden>← Sair da estante</button>
+          <button type="button" id="focusExit" class="shelf-exit" hidden>↩ Ver todas</button>
+          <span class="scene-state" id="sceneState">● EM TEMPO REAL</span>
+        </div>
+      </div>
+      <div id="shelfModeHint" class="shelf-hint" hidden>▤ ESTANTE · Visão frontal · Use o scroll para trocar de loja</div>
+      <div id="tooltip" class="scene-tooltip" hidden></div>
+      <div id="launchError" class="launch-error" role="alert" hidden>
+        <strong>Não foi possível montar o escritório 3D.</strong>
+        <p id="launchErrorText"></p>
+        <button type="button" id="retryBtn">Tentar novamente</button>
+      </div>
+      <div id="sceneLoading" class="scene-loading"><span class="spinner"></span>Carregando escritório...</div>
+      <div class="scene-foot">
+        <span id="sceneHint">Arraste para girar · Scroll para zoom · ↑ e ↓ trocam de andar</span>
+        <button type="button" id="resetView" class="reset-view" title="Voltar à visão do andar">⌖ &nbsp; Centralizar</button>
+      </div>
+    </section>
 
-    <aside class="right-panel">
-      <div class="inspector-head"><span class="small-label">EXPLORADOR DE PROJETOS</span><div class="inspector-avatar" id="detailEmblem">✧</div><span class="inspect-tag" id="detailType">VISÃO GERAL</span><h2 id="detailTitle">Bem-vindo ao Mapa.</h2><p id="detailDescription">Explore o escritório e selecione um membro da equipe para descobrir o que ele faz.</p></div>
-      <div class="inspector-team-actions" id="teamFocusActions" hidden><button id="focusTeamBtn" class="focus-team-btn" type="button">◎ &nbsp; Focar esta equipe</button></div>
-      <div class="inspector-section"><span class="small-label">STATUS REAL</span><div class="status-line"><span class="status-indicator unknown" id="detailDot"></span><strong id="detailStatus">Aguardando conexão</strong></div><p class="state-helper" id="detailChecked">Os estados só aparecem após verificação na VPS.</p></div>
-      <div class="inspector-section details"><span class="small-label">DETALHES</span><div id="detailRows"></div></div>
-      <div class="panel-warning"><span>◇</span><p><b>Modo protegido.</b> Este protótipo consulta estados, mas não inicia, desliga ou reinicia serviços.</p></div>
-      <button class="return-btn" id="returnBtn">↩ &nbsp; VISÃO GERAL DO PRÉDIO</button>
+    <aside class="right-panel" id="rightPanel" aria-label="Detalhes">
+      <div class="panel-head right-heading">
+        <button type="button" id="rightToggle" class="panel-toggle" aria-label="Abrir detalhes" aria-expanded="false" title="Expandir detalhes">◧</button>
+        <div class="panel-heading"><strong>DETALHES</strong><small>Elemento selecionado</small></div>
+      </div>
+      <div class="right-expanded">
+        <div class="inspector-intro">
+          <span id="detailType" class="entity-type">MAPA</span>
+          <h2 id="detailTitle">Selecione algo</h2>
+          <p id="detailDescription">Clique numa sala, funcionário, estante ou página.</p>
+        </div>
+        <div class="status-bar"><span class="status-circle unknown" id="detailDot"></span><span id="detailStatus">Sem seleção</span></div>
+        <div id="detailMeta" class="meta-lines"></div>
+        <div class="detail-actions">
+          <button id="focusTeamBtn" class="action-primary" type="button" hidden>◎ Focar equipe</button>
+          <button id="hideBtn" class="action-muted" type="button" hidden>◌ Ocultar</button>
+        </div>
+        <p class="detail-note">Ocultar afeta apenas este mapa. Nenhum cadastro ou serviço da VPS será alterado.</p>
+      </div>
+      <div class="right-mini" aria-hidden="true">◈</div>
     </aside>
   </main>
-  <div class="bottom-strip" id="bottomStrip">
-    <div class="bottom-left"><span class="source-dot" id="sourceDot"></span><span id="sourceText">Sem dados ao vivo</span></div>
-    <div class="bottom-middle"><span class="count"><b id="activeCount">0</b> ATIVOS</span><span class="count"><b id="inactiveCount">0</b> INATIVOS</span><span class="count"><b id="unknownCount">6</b> NÃO VERIFICADOS</span><span class="count pet-count-line"><b id="petsOnline">0</b> PETS ONLINE</span></div>
-    <div class="bottom-right"><label for="fov">FOV</label><input id="fov" type="range" min="35" max="70" value="48" aria-label="Campo de visão da câmera"><span id="fovValue">48°</span><button id="quality" class="quality-btn" title="Alternar qualidade visual">QUALIDADE: LEVE</button></div>
-  </div>
+  <footer class="status-footer">
+    <div class="status-source"><span id="sourceDot" class="mini-status"></span><span id="sourceText">Verificando VPS</span></div>
+    <div class="status-totals"><span><b id="activeCount">0</b> serviços</span><span>·</span><span><b id="computerCount">0</b> computadores</span></div>
+    <details class="render-settings"><summary>Visual <span>⌄</span></summary>
+      <label>FOV <input type="range" id="fov" min="35" max="70" value="48"><b id="fovValue">48°</b></label>
+      <button type="button" id="quality">Qualidade: leve</button>
+    </details>
+  </footer>
 </div>
 <script type="module" src="/assets/main.js"></script>
 </body>

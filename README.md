@@ -1,71 +1,50 @@
-# ENFOQUE MAPA — CONTROL CENTER 3D
+# Mapa — Enfoque Control Center 3D
 
-Fase 1 + melhorias: duas salas, seis personagens cartoon, câmera orbital livre, quintal com pets procedurais e status reais da VPS. O GitHub é a fonte oficial; sua cópia local é atualizada com git pull.
+Mapa de projetos da Enfoque, com dois andares, móveis e personagens gerados por código, e estados reais da VPS consultados somente para leitura.
 
-## Executar no Windows
+## Abrir
 
-1. Na Área de Trabalho, abra a pasta Mapa clonada deste repositório.
-2. Dê dois cliques em **Iniciar Mapa.bat**. O script prepara automaticamente as bibliotecas Python dentro de .venv (somente na primeira vez), inicia o FastAPI em http://127.0.0.1:47831 e abre o navegador.
-3. O escritorio 3D abre automaticamente na pagina, sem tela de boas-vindas.
-4. Arraste para orbitar; use scroll/pinca para zoom; botao direito ou Shift+arrastar para pan; duplo clique para aproximar. Clique numa sala e em Focar esta equipe para ocultar as demais; clique em Voltar ao predio para sair do foco. O botao ☰ recolhe/expande a sidebar.
-5. Para encerrar, feche a janela do prompt aberta pelo .bat. **O programa não inicia com o Windows.**
+No Windows, abra a pasta Mapa na Área de Trabalho e execute **Iniciar Mapa.bat**. O programa prepara o Python local na primeira execução, inicia em http://127.0.0.1:47831 e abre o navegador. **Não inicia com o Windows**. Para encerrar, feche o terminal.
 
-Requisitos: Windows, Python 3 e navegador com WebGL. O Three.js 0.160.1 já está incluído no repositório. **Nenhum modelo 3D, textura, imagem ou pacote gráfico é baixado**; tudo é gerado por código. Licença do motor em LICENSE-THREE.txt.
+## Navegação
 
-## Atualização pelo GitHub
+O programa abre sempre no **1º andar**, com as barras laterais esquerda e direita **recolhidas**.
 
-Repositório canônico: https://github.com/tecnologia-en/mapa (branch main). Pasta de testes no desktop: Área de Trabalho/Mapa.
+- Sidebar esquerda: botões 1 e 2 para alternar andares; botão ☰ expande um menu simples com **Salas do prédio**, **Equipe**, **Páginas da intranet** e **Itens ocultos**. Cada seção é expansível; a barra inteira possui uma única rolagem personalizada.
+- Teclado: ↑ sobe ao segundo andar; ↓ desce ao primeiro; 1 e 2 selecionam diretamente. Esc sai da estante ou do foco em uma equipe.
+- Mouse: arrastar orbita a câmera; botão direito ou Shift + arrastar faz pan; scroll aproxima e afasta; duplo clique aproxima do elemento.
+- Segundo andar: a **Intranet** ocupa uma sala inteira dividida em oito departamentos. Cada mini funcionário representa uma página HTML real da intranet, com mesa e cadeira. O catálogo está em config/intranet_pages.yaml.
+- Quando o primeiro andar está ativo, o segundo permanece **semitransparente**, mostrando seu interior. Quando o segundo está ativo, o primeiro vira silhueta translúcida.
+- **Estante Computadores** na sala Enfoque OS: clicar nela entra em visão frontal travada. Cada prateleira corresponde a uma loja; cada livro a um computador. Passe o mouse no livro para exibir legenda; scroll percorre as lojas sem girar a câmera. Use Esc ou Sair da estante para voltar.
+- Sidebar direita: botão ◧ abre os detalhes com nome, categoria, status e ações simples. O botão Focar equipe aparece apenas para salas do primeiro andar.
 
-Fluxo: editar projeto → commit/push no GitHub → git pull --ff-only na pasta Mapa → testar. Também é possível executar **Atualizar Mapa.bat**.
+## Ocultação somente visual
 
-Não use git reset --hard para atualizar, e não altere o código da cópia local durante o ciclo oficial de publicação.
+Salas, personagens, páginas, departamentos, computadores, lojas e estante podem ser ocultados no Mapa. A preferência fica no localStorage do navegador, chave enfoque-mapa-visual-hidden-v3. **Não existem botões de mover ou atualizar cadastros da VPS.**
+
+Ao ocultar um funcionário ou página, somente o personagem e seu nome somem; a **mesa continua visível e clicável** para identificar quem estava ali e restaurá-lo. A seção Itens ocultos, na sidebar, também permite restaurar individualmente.
+
+## Estados e segurança
+
+Os estados dos seis serviços systemd e dos agentes aprovados são consultados por uma API segura e de somente leitura da VPS. O backend Python local repassa dados de apresentação por WebSocket a cada 8 segundos. Não envia comandos, reinicia serviços ou altera cadastros.
+
+Computador online significa conexão recente do agente, não garantia de que todo o PC esteja saudável. Se a VPS ficar inacessível, os estados são desconhecidos. Nomes de usuário, IPs, tokens e identificadores físicos não são enviados ao GitHub.
+
+O token privado fica somente em config.local.json, ignorado pelo Git. A integração já existente na VPS está documentada em server/.
 
 ## Estrutura
 
-- backend/app.py: FastAPI local em 127.0.0.1:47831, REST e WebSocket com atualização a cada 8 segundos.
-- config/projects.yaml: salas, personagens, roupas e identificadores dos serviços.
-- web/index.html: tela inicial e painel de inspeção.
-- web/assets/pet.js: cachorros e gatos procedurais, sentados quando online e dormindo quando offline.\n- web/assets/character.js: corpos, rosto, roupas, cabelo, acessórios, expressões e animações gerados por código. Não usa BoxGeometry em personagens.
-- web/assets/world.js: prédio, salas, móveis, câmera livre, iluminação e pisos procedurais.
-- web/assets/main.js: interface, busca e conexão WebSocket.
-- web/assets/style.css: apresentação responsiva.
-- web/assets/three.module.js: biblioteca Three.js MIT vendorizada (sem CDN).
-- config.local.json: credencial local da VPS, ignorada pelo Git.
+- backend/app.py — FastAPI local, WebSocket, estados e catálogo.
+- config/projects.yaml — salas e serviços.
+- config/intranet_pages.yaml — 8 departamentos e 60 páginas HTML existentes.
+- web/assets/world.js — cenário, andares, escada, transparência, câmera.
+- web/assets/intranet.js — departamentos, mesas e personagens do segundo andar.
+- web/assets/bookshelf.js — estante e livros.
+- web/assets/character.js — personagens do primeiro andar.
+- web/assets/main.js — interação, seleção, ocultação no navegador.
+- web/assets/style.css — visual minimalista e scroll personalizado.
+- Iniciar Mapa.bat e Atualizar Mapa.bat — inicialização manual e Git pull.
 
-## Dados reais e segurança
+O GitHub https://github.com/tecnologia-en/mapa é a fonte oficial. Alterações são publicadas em main e atualizadas no desktop com git pull --ff-only. Testes automatizados: python -m unittest discover -s tests -v.
 
-Cada personagem representa um serviço systemd concreto, identificado por check_id no YAML. A API segura na VPS consulta somente uma lista permitida usando systemctl is-active e envia os estados por HTTPS autenticado. O FastAPI local repassa apenas os estados e os dados de apresentação.
-
-Serviços monitorados nesta fase: enfoque-os-remote, enfoque-agent-api, enfoque-os-oidc, nginx, chatgpt-mcp, enfoque-vpn-monitor.
-
-Se a VPS ficar inacessível, todos os personagens aparecem como **não verificados**, nunca online fictício. O estado "ativo" significa apenas systemctl is-active=active, não que o serviço processa uma tarefa agora.
-
-Não há controle de computadores, terminal, mudança de serviços nem tarefas agendadas. O repositório é público: não publicar tokens, IPs internos, inventários ou arquivos pessoais. O token fica somente em config.local.json no desktop e em arquivo protegido na VPS.
-
-## Estado das fases
-
-**Fase 1 (esta entrega):** duas salas, seis personagens distintos com rosto e animações, mobília, câmera livre com FOV, pan, zoom, duplo clique, paredes transparentes, painel de detalhes, busca, WebSocket e seis status reais.
-
-**Fase 2 (pendente):** expansão do YAML, dependências animadas, painel de CPU/memória/logs, checagem Docker, processos, arquivos, portas e cron.
-
-**Fase 3 (pendente):** descoberta automática, propostas para aprovação, histórico SQLite, impacto de falhas, alertas, ações autorizadas com confirmação, pós-processamento opcional.
-
-
-## Nova etapa: quintal, pets e interface
-
-- Nao existe mais menu de inicio; a aplicacao abre direto na cena tridimensional.
-- Sidebar esquerda retratil. A selecao de uma sala exibe o botao Focar esta equipe.
-- Foco exclusivo vale somente para uma sala: esconde temporariamente outros ambientes em 3D, mas preserva o quintal da equipe Enfoque OS.
-- Quintal anexado ao Enfoque OS com grupos de caes e gatos, ordenados por loja/empresa registrada; cada animal corresponde a um computador aprovado (com deduplicacao de varios agentes da mesma maquina).
-- Online: conexao ativa do agente ou heartbeat recente existente; o pet fica sentado. Offline: ja havia sinal e ele expirou; o pet dorme. Sem sinal: ainda nao ha confirmacao, a animacao permanece neutra. Os animais nao causam pings, execucao remota ou processos novos nos PCs.
-- O gateway root MCP possui uma pequena rota read-only, restrita a 127.0.0.1 e protegida com o token da ponte Mapa. A rota entrega apenas nome de apresentacao, loja, ID aleatorio derivado, estado e horario do ultimo sinal. Tokens, nomes de usuario, IPs, comandos e identificadores brutos nao sao publicados.
-- A API da VPS mantem cache de 5 segundos; o backend local recebe os dados na mesma resposta ja usada para os estados systemd e publica pelo WebSocket existente a cada 8 segundos.
-- Caso o servidor pare de responder, os animais anteriormente conhecidos passam a estado desconhecido, sem mostrar verde falso.
-- Modulos de interface: web/assets/main.js, web/assets/world.js, web/assets/pet.js, web/index.html, web/assets/style.css.
-- Esta etapa nao inclui controle remoto, alteracoes de status do PC, abertura automatica no Windows ou descoberta de dispositivos pendentes.
-
-Verificacao: python -m unittest discover -s tests; node --check nos arquivos JS (em extensao ESM).
-
-## Arquivos versionados da integracao VPS
-
-A pasta server/ preserva a fonte da ponte Mapa (mapa_status_bridge.py), a unidade systemd, um exemplo de rota HTTPS do Nginx e o patch minimo do Root MCP para consultar os agentes em memoria. Nao contem tokens reais. Estes arquivos documentam o deploy da integracao sem depender da memoria da conversa; aplicar alteracoes em producao somente com validacao e backup.
+Próximas fases: dependências, histórico SQLite e alertas; ainda não implementados.

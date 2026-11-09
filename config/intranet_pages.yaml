@@ -1,0 +1,216 @@
+version: 1
+source: Rotas HTML encontradas na intranet Enfoque em 2026-11-09
+floor: intranet
+departments:
+- id: cadastro
+  name: Cadastro
+  accent: '#bba8ff'
+  pages:
+  - id: cadastro-clientes
+    name: Cadastro de clientes
+    path: /cadastro-clientes.html
+  - id: cadastro-cliente-publico
+    name: Cliente público
+    path: /cadastro-cliente-publico.html
+  - id: cadastro-produtos-xml
+    name: Produtos por XML
+    path: /cadastro-produtos-xml.html
+  - id: cadastro-xml
+    name: Importação XML
+    path: /cadastro-xml.html
+  - id: atualizacao-cadastro
+    name: Atualização cadastral
+    path: /atualizacao-cadastro.html
+  - id: tabela-livros
+    name: Cadastro em massa
+    path: /tabela-livros.html
+  - id: inativacao-exclusao
+    name: Inativação e exclusão
+    path: /inativacao-exclusao.html
+  - id: fornecedores
+    name: Fornecedores
+    path: /fornecedores.html
+  - id: clientes-inativos-config
+    name: Clientes inativos
+    path: /clientes-inativos-config.html
+  - id: escolas-descontos
+    name: Descontos por escola
+    path: /escolas-descontos.html
+  - id: app-usuarios
+    name: App Usuarios
+    path: /app-usuarios.html
+- id: estoque
+  name: Estoque & Compras
+  accent: '#8ed7b8'
+  pages:
+  - id: estoque-app
+    name: Estoque App
+    path: /estoque-app.html
+  - id: contagem-estoque
+    name: Contagem Estoque
+    path: /contagem-estoque.html
+  - id: minimo-maximo
+    name: Mínimo e máximo
+    path: /minimo-maximo.html
+  - id: planejamento-compras
+    name: Planejamento Compras
+    path: /planejamento-compras.html
+  - id: devolucao
+    name: Devolucao
+    path: /devolucao.html
+  - id: produtos-sem-vendas
+    name: Sem vendas
+    path: /produtos-sem-vendas.html
+  - id: relatorio-material-consumo
+    name: Material de consumo
+    path: /relatorio-material-consumo.html
+  - id: tabela-preco
+    name: Tabela Preco
+    path: /tabela-preco.html
+- id: vendas
+  name: Vendas & PDV
+  accent: '#f1c183'
+  pages:
+  - id: pdv
+    name: PDV
+    path: /pdv.html
+  - id: pdv1
+    name: PDV alternativo
+    path: /pdv1.html
+  - id: dashboard-vendas-principal
+    name: Painel de vendas
+    path: /dashboard-vendas-principal.html
+  - id: relatorio-vendas
+    name: Vendas
+    path: /relatorio-vendas.html
+  - id: relatorio-vendas-vendedores
+    name: Vendas Vendedores
+    path: /relatorio-vendas-vendedores.html
+  - id: relatorio-vendas-categoria
+    name: Vendas Categoria
+    path: /relatorio-vendas-categoria.html
+  - id: relatorio-cotas-lojas
+    name: Cotas das lojas
+    path: /relatorio-cotas-lojas.html
+  - id: ganhos
+    name: Ganhos e premiações
+    path: /ganhos.html
+  - id: resultados
+    name: Resultados
+    path: /resultados.html
+- id: financeiro
+  name: Financeiro & Fiscal
+  accent: '#7ebbdc'
+  pages:
+  - id: relatorio-financeiro-diario
+    name: Financeiro diário
+    path: /relatorio-financeiro-diario.html
+  - id: relatorio-despesas
+    name: Despesas
+    path: /relatorio-despesas.html
+  - id: relatorio-caixa-conferencias
+    name: Conferências de caixa
+    path: /relatorio-caixa-conferencias.html
+  - id: relatorio-vale-livro
+    name: Vale Livro
+    path: /relatorio-vale-livro.html
+  - id: relatorios-xml-fiscal
+    name: XML Fiscal
+    path: /relatorios-xml-fiscal.html
+  - id: relatorio-margem-produto
+    name: Margem Produto
+    path: /relatorio-margem-produto.html
+- id: relatorios
+  name: Relatórios & BI
+  accent: '#d9b5a0'
+  pages:
+  - id: relatorio-estoque
+    name: Estoque
+    path: /relatorio-estoque.html
+  - id: relatorio-curva-abc
+    name: Curva ABC
+    path: /relatorio-curva-abc.html
+  - id: relatorio-vendedores-marca-categoria
+    name: Vendedores Marca Categoria
+    path: /relatorio-vendedores-marca-categoria.html
+  - id: relatorio-clientes-sem-venda
+    name: Clientes Sem Venda
+    path: /relatorio-clientes-sem-venda.html
+  - id: relatorio-login
+    name: Logs de login
+    path: /relatorio-login.html
+  - id: relatorio-vpn
+    name: Monitor VPN
+    path: /relatorio-vpn.html
+- id: pessoas
+  name: Pessoas & RH
+  accent: '#edacbe'
+  pages:
+  - id: rh
+    name: Recursos Humanos
+    path: /rh.html
+  - id: registro-ponto
+    name: Registro de ponto
+    path: /registro-ponto.html
+  - id: datas
+    name: Datas importantes
+    path: /datas.html
+- id: conteudo
+  name: Site & Conteúdo
+  accent: '#8fcde3'
+  pages:
+  - id: banner
+    name: Banners
+    path: /banner.html
+  - id: destaques
+    name: Destaques
+    path: /destaques.html
+  - id: tema-site
+    name: Tema do site
+    path: /tema-site.html
+  - id: home
+    name: Home
+    path: /home.html
+  - id: linkdabio
+    name: Link da bio
+    path: /linkdabio.html
+  - id: videos
+    name: Videos
+    path: /videos.html
+  - id: telas
+    name: Telas
+    path: /telas.html
+  - id: trabalhe-conosco
+    name: Trabalhe Conosco
+    path: /trabalhe-conosco.html
+  - id: orcamento-escolar
+    name: Orçamento escolar
+    path: /orcamento-escolar.html
+- id: ti
+  name: TI & Gestão
+  accent: '#c7c99b'
+  pages:
+  - id: dashboard
+    name: Dashboard
+    path: /dashboard.html
+  - id: crons
+    name: Automações
+    path: /crons.html
+  - id: configuracoes
+    name: Configuracoes
+    path: /configuracoes.html
+  - id: copiloto-sige
+    name: Copiloto SIGE
+    path: /copiloto-sige.html
+  - id: sige-ai-lab
+    name: Laboratório SIGE
+    path: /sige-ai-lab.html
+  - id: ia-gerencial
+    name: IA gerencial
+    path: /ia-gerencial.html
+  - id: acesso-remoto
+    name: Acesso remoto
+    path: /acesso-remoto.html
+  - id: geral
+    name: Visão geral
+    path: /geral.html
