@@ -1,6 +1,7 @@
 /* Enfoque Mapa - mundo Three.js sem modelos, texturas, meshes ou assets importados. */
 import * as T from "./three.module.js";
 import {createCharacter} from "./character.js";
+import {createPet} from "./pet.js";
 
 const colors={floor:0x193644,wall:0xc4d2c8,beige:0xe9dcc0,muted:0x8fa7ad,steel:0x5d7181,wood:0x987b5f,trim:0x546b6c};
 const color=x=>new T.Color(x);
@@ -140,6 +141,38 @@ function wallWithDoor(g,x,y,z,w,d,orientation,colorMaterial){
  const obj=box(g,w,3.7,d,0,x,y,z,colorMaterial.clone());
  obj.userData.isWall=true;obj.userData.axis=orientation;obj.raycast=()=>{};return obj;
 }
+// A stable, visually linked outdoor zone. Pets live in the Enfoque OS scene group,
+// so isolating that team includes its yard. No 3D files, sensors or asset fetches.
+function yardForOS(roomGroup, accent) {
+  const yard=new T.Group();yard.position.set(0,0,10.4);roomGroup.add(yard);
+  box(yard,13.25,.24,11.1,0x374b49,0,-.29,0);
+  const grass=box(yard,12.9,.05,10.8,0x5e8d70,0,-.12,0);
+  grass.material.roughness=1;
+  // Path connects the opening in the office to the pet yard.
+  beveled(yard,2.2,10.5,.035,0xc6b9a0,0,-.055,-.02);
+  for (const side of [-1,1]){
+    const x=side*6.45;
+    for(let z=-5.10;z<=5.11;z+=1.40){
+      cyl(yard,.083,.083,.89,0x9c8c6e,x,.30,z);
+    }
+    box(yard,.075,.075,10.6,0xab9977,x,.69,0);
+    box(yard,.075,.075,10.6,0xab9977,x,.38,0);
+  }
+  for(const z of [-5.35,5.35]){
+    for(let x=-6.20;x<=6.21;x+=1.28){
+      if(z===-4.55&&Math.abs(x)<1.7)continue; // gate toward the OS room
+      cyl(yard,.07,.07,.83,0xa78c69,x,.3,z);
+    }
+    box(yard,12.8,.07,.075,0xb3a17d,0,.68,z);
+  }
+  const sign=signSprite("PÁTIO DOS AGENTES","UM PET POR COMPUTADOR",accent);
+  sign.scale.set(3.35,.79,1);sign.position.set(-3.95,1.65,4.68);yard.add(sign);
+  plant(yard,-5.8,-4.45);plant(yard,5.8,-4.45);
+  // Store labels are injected next to rows at refresh.
+  const petLayer=new T.Group();yard.add(petLayer);
+  return {yard,petLayer};
+}
+
 function room(group,def,idx,actorMap,walls){
  const g=new T.Group();g.position.set(idx===0?-8.2:8.2,0,-1);g.userData.roomId=def.id;group.add(g);
  const roomW=13.25,roomD=11.25,roomY=.18;
@@ -197,6 +230,7 @@ function room(group,def,idx,actorMap,walls){
    g.add(character.root);actorMap.set(p.id,character);
    character.setStatus(p.status||"unknown");
  });
+ if(idx===0)g.userData.yard=yardForOS(g,def.accent);
  // Room floor clickable and label.
  slab.userData.roomId=def.id;
  return g;
@@ -206,7 +240,7 @@ export class World {
     this.mount=mount;this.onSelect=onSelect;this.onFocus=onFocus;this.onHover=onHover;
     this.scene=new T.Scene();this.scene.background=new T.Color("#1c3442");
     this.scene.fog=new T.FogExp2(0x1c3442,.011);
-    this.camera=new T.PerspectiveCamera(48,1,.09,135);this.camera.position.set(18,27,32);
+    this.camera=new T.PerspectiveCamera(48,1,.09,160);this.camera.position.set(22,31,41);
     this.renderer=new T.WebGLRenderer({antialias:false,powerPreference:"low-power"});
     this.renderer.setPixelRatio(Math.min(devicePixelRatio||1,1));this.renderer.outputColorSpace=T.SRGBColorSpace;
     this.renderer.toneMapping=T.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.20;
@@ -215,16 +249,17 @@ export class World {
     const key=new T.DirectionalLight(0xffe8c4,2.55);key.position.set(-10,25,17);this.scene.add(key);
     const fill=new T.DirectionalLight(0x9cceef,1.4);fill.position.set(10,18,-15);this.scene.add(fill);
     const group=new T.Group();this.scene.add(group);this.group=group;
-    box(group,32.0,.8,21.9,0x0f2733,0,-.91,-.8);
-    box(group,31.9,.24,21.7,0x698584,0,-.49,-.8);
+    box(group,32.0,.8,29.8,0x0f2733,0,-.91,3.05);
+    box(group,31.9,.24,29.7,0x698584,0,-.49,3.05);
     // Central connection corridor and reception.
-    const corridor=beveled(group,30.2,3.45,.10,0x69817b,0,-.33,6.7);
-    for(let i=-5;i<=5;i++){const a=box(group,.025,.009,3.18,0x89a3a0,i*2.5,-.205,6.7);a.material.roughness=.9;}
-    const plaque=beveled(group,4.4,1.0,.12,0x315967,0,-.18,6.67);
-    const sign=signSprite("ENFOQUE","CONTROL CENTER", "#a6e5b9");sign.position.set(0,.75,6.7);group.add(sign);
-    this.rooms=new Map();this.actors=new Map();this.walls=[];
+    const commons=new T.Group();group.add(commons);this.commons=commons;
+    const corridor=beveled(commons,12.0,3.45,.10,0x69817b,8.1,-.33,6.7);
+    for(let i=-5;i<=5;i++){const a=box(commons,.025,.009,3.18,0x89a3a0,8.1+i*.91,-.205,6.7);a.material.roughness=.9;}
+    const plaque=beveled(commons,4.4,1.0,.12,0x315967,8.0,-.18,6.67);
+    const sign=signSprite("ENFOQUE","CONTROL CENTER", "#a6e5b9");sign.position.set(8.0,.75,6.7);commons.add(sign);
+    this.rooms=new Map();this.actors=new Map();this.pets=new Map();this.petRowLabels=[];this.petLayoutKey=null;this.walls=[];this.isolatedRoom=null;
     this.actorDefinitions=new Map();
-    this.cameraState={yaw:.55,pitch:.65,distance:41,target:v(0,0,0),wanted:v(0,0,0),wantedYaw:.55,wantedPitch:.65,wantedDistance:41,
+    this.cameraState={yaw:.55,pitch:.68,distance:49,target:v(0,0,2.5),wanted:v(0,0,2.5),wantedYaw:.55,wantedPitch:.68,wantedDistance:49,
      velocityYaw:0,velocityPitch:0,panVelocity:v(0,0,0)};
     this.pointer=new Map();this.dragging=false;this.dragDistance=0;this.lastX=0;this.lastY=0;this.dragMode="orbit";
     this.pinchDist=0;this.selected=null;this.time=0;this.last=0;this.playing=true;this.low=true;this.animId=null;
@@ -243,17 +278,72 @@ export class World {
       this.actorDefinitions.set(p.id,{...p,roomId:r.id,roomName:r.name});
       const a=this.actors.get(p.id);if(a)a.setStatus(p.status||"unknown");
     }
-    this.focusRoom=null;
+    this.updatePets(data.pets||[]);
+  }
+  updatePets(list) {
+    if(!this.rooms.has("enfoque-os")) return;
+    const zone=this.rooms.get("enfoque-os").userData.yard;
+    if(!zone) return;
+    const incoming=Array.isArray(list)?list.slice(0,24):[];
+    const ids=new Set(incoming.map(p=>p.id));
+    for(const [id,pet]of this.pets)if(!ids.has(id)){
+      zone.petLayer.remove(pet.root);pet.dispose();this.pets.delete(id);
+    }
+    for(const data of incoming){
+      let pet=this.pets.get(data.id);
+      if(!pet){pet=createPet(data);zone.petLayer.add(pet.root);this.pets.set(data.id,pet);}
+      pet.setStatus(data.status);
+      pet.data=data;
+    }
+    const signature=incoming.map(p=>p.owner+"|"+p.id).join(";");
+    if(this.petLayoutKey===signature)return;
+    this.petLayoutKey=signature;
+    for(const label of this.petRowLabels){
+      zone.petLayer.remove(label);label.material.map?.dispose();label.material.dispose();
+    }
+    this.petRowLabels=[];
+    const grouped=new Map();
+    for(const pet of incoming){if(!grouped.has(pet.owner))grouped.set(pet.owner,[]);grouped.get(pet.owner).push(pet);}
+    let row=0;
+    for(const [owner,pets]of grouped){
+      for(let offset=0;offset<pets.length;offset+=4){
+        if(row>=6)break;
+        const segment=pets.slice(offset,offset+4),z=-3.80+row*1.68;
+        const sign=signSprite(owner,"LOJA / EMPRESA","#ddf1ba");
+        sign.scale.set(2.0,.55,1);sign.position.set(-4.95,.74,z);
+        zone.petLayer.add(sign);this.petRowLabels.push(sign);
+        for(let i=0;i<segment.length;i++){
+          const pet=this.pets.get(segment[i].id);
+          pet.root.position.set(-2.90+i*1.85,-.10,z+.10);
+        }
+        row++;
+      }
+    }
+  }
+  isolateRoom(id) {
+    if(id && !this.rooms.has(id))return;
+    this.isolatedRoom=id||null;
+    for(const [key,group]of this.rooms)group.visible=!id||key===id;
+    if(this.commons)this.commons.visible=!id;
+    if(id){
+      const room=this.rooms.get(id),s=this.cameraState;
+      s.wanted.set(room.position.x,1.25,room.position.z+(id==="enfoque-os"?3.6:0));
+      s.wantedDistance=id==="enfoque-os"?35:24;
+    }else this.reset();
   }
   findRoom(id){return this.data?.rooms?.find(r=>r.id===id);}
   fov(val){this.camera.fov=Math.max(35,Math.min(70,Number(val)||48));this.camera.updateProjectionMatrix();}
   setQuality(high){this.low=!high;this.renderer.setPixelRatio(Math.min(devicePixelRatio||1,high?1.4:1.0));this.resize();}
-  reset(){const s=this.cameraState;s.wanted.set(0,0,0);s.wantedYaw=.55;s.wantedPitch=.65;s.wantedDistance=41;this.selected=null;}
+  reset(){const s=this.cameraState;s.wanted.set(0,0,2.5);s.wantedYaw=.55;s.wantedPitch=.68;s.wantedDistance=49;this.selected=null;}
   focus(kind,id){
     const s=this.cameraState;
     if(kind==="room"){
       const room=this.rooms.get(id);if(!room)return;
-      s.wanted.set(room.position.x,1.0,room.position.z);s.wantedDistance=22;
+      s.wanted.set(room.position.x,1.0,room.position.z+(id==="enfoque-os"?3.2:0));s.wantedDistance=id==="enfoque-os"?32:22;
+    }else if(kind==="pet"){
+      const pet=this.pets.get(id);if(!pet)return;
+      const pos=new T.Vector3();pet.root.getWorldPosition(pos);
+      s.wanted.copy(pos).add(v(0,1,0));s.wantedDistance=11.5;
     }else{
       const actor=this.actors.get(id);if(!actor)return;
       const pos=new T.Vector3();actor.root.getWorldPosition(pos);
@@ -270,6 +360,7 @@ export class World {
     for(const h of hits){
       let obj=h.object;
       while(obj){
+        if(obj.userData.petId)return{kind:"pet",id:obj.userData.petId};
         if(obj.userData.personId)return{kind:"person",id:obj.userData.personId};
         if(obj.userData.roomId)return{kind:"room",id:obj.userData.roomId};
         obj=obj.parent;
@@ -349,6 +440,7 @@ export class World {
     this.camera.lookAt(s.target);
     this.wallsForCamera();
     for(const a of this.actors.values())a.update(this.time);
+    for(const pet of this.pets.values())pet.update(this.time);
     this.renderer.render(this.scene,this.camera);
   }
   dispose(){this.playing=false;cancelAnimationFrame(this.animId);this.ro.disconnect();this.renderer.dispose();this.dom.remove();}

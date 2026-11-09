@@ -39,6 +39,35 @@ def projects() -> list[dict]:
     return raw["rooms"][:12]
 
 
+def safe_pets(raw: object) -> list[dict]:
+    """Allow only display fields: never forward agent identifiers or credentials."""
+    if not isinstance(raw, list):
+        return []
+    pets = []
+    seen = set()
+    for item in raw[:35]:
+        if not isinstance(item, dict):
+            continue
+        pet_id = str(item.get("id", ""))[:40]
+        if not pet_id.startswith("pet-") or pet_id in seen:
+            continue
+        seen.add(pet_id)
+        status = str(item.get("status", "unknown"))
+        if status not in ("online", "offline", "unknown"):
+            status = "unknown"
+        pets.append({
+            "id": pet_id,
+            "name": str(item.get("name") or "Computador")[:45],
+            "owner": str(item.get("owner") or "Sem loja")[:40],
+            "status": status,
+            "lastSeenAt": str(item["lastSeenAt"])[:64] if item.get("lastSeenAt") else None,
+        })
+    return pets[:30]
+
+
+_last_known_pets: list[dict] = []
+
+
 def remote_status() -> dict:
     """Remote side returns allowlisted service states, never credentials or process arguments."""
     try:
@@ -67,8 +96,17 @@ def remote_status() -> dict:
                 "state": state if state in _ALLOWED_STATES else "unknown",
                 "checkedAt": str(item.get("checkedAt", ""))[:64]
             }
+        pets = safe_pets(data.get("devices", []))
+        if data.get("devicesAvailable") is True:
+            # Approved without active websocket/poll is disconnected from the
+            # agent network (not proof that the hardware is powered off).
+            for pet in pets:
+                if pet["status"] == "unknown":
+                    pet["status"] = "offline"
         return {"connected": True, "services": states,
-                "checkedAt": str(data.get("checkedAt", ""))[:64]}
+                "checkedAt": str(data.get("checkedAt", ""))[:64],
+                "petsAvailable": data.get("devicesAvailable") is True,
+                "pets": pets}
     except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError):
         return {"connected": False, "error": "Servidor indisponível ou autenticação inválida"}
 
@@ -77,7 +115,15 @@ def snapshot_uncached() -> dict:
     rooms = json.loads(json.dumps(projects(), ensure_ascii=False))
     remote = remote_status()
     connected = bool(remote.get("connected"))
+    global _last_known_pets
     summary = {"active": 0, "inactive": 0, "unknown": 0}
+    if connected and remote.get("petsAvailable"):
+        _last_known_pets = remote.get("pets", [])
+        pets = _last_known_pets
+    else:
+        # Keep the known animals in view, but never show stale "online".
+        pets = [{**item, "status": "unknown"} for item in _last_known_pets]
+
     for room in rooms:
         for person in room.get("people", []):
             check = str(person.get("check_id", ""))
@@ -89,10 +135,17 @@ def snapshot_uncached() -> dict:
             # Avoid returning arbitrary check configuration or secrets from YAML.
             person.pop("check", None)
     return {
-        "version": "0.1.0", "mode": "read-only", "connected": connected,
+        "version": "0.2.0", "mode": "read-only", "connected": connected,
         "checkedAt": remote.get("checkedAt") if connected else None,
         "connectionMessage": "VPS conectada, verificações reais" if connected else remote.get("error", "Sem conexão"),
         "summary": summary, "rooms": rooms,
+        "pets": pets, "petsAvailable": connected and bool(remote.get("petsAvailable")),
+        "petSummary": {
+            "total": len(pets),
+            "online": sum(p["status"] == "online" for p in pets),
+            "offline": sum(p["status"] == "offline" for p in pets),
+            "unknown": sum(p["status"] == "unknown" for p in pets),
+        },
         "canControl": False
     }
 
@@ -128,7 +181,7 @@ async def get_state():
 
 @app.get("/api/health")
 async def health():
-    return {"ok": True, "mode": "read-only", "version": "0.1.0"}
+    return {"ok": True, "mode": "read-only", "version": "0.2.0"}
 
 
 @app.websocket("/ws")

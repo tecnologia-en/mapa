@@ -1,0 +1,81 @@
+--- a/server.js
++++ b/server.js
+@@ -2,7 +2,7 @@
+ import path from "node:path";
+ import os from "node:os";
+ import express from "express";
+-import { createHash, randomUUID } from "node:crypto";
++import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
+ import { execFile } from "node:child_process";
+ import { promisify } from "node:util";
+ import { WebSocketServer } from "ws";
+@@ -2693,6 +2693,69 @@
+ app.use("/mcp/pc-agent", express.json({ limit: "8mb" }));
+ app.use("/internal/pc-control", express.json({ limit: "1mb" }));
+ 
++/* MAPA_STATUS_PETS_V02: read-only loopback endpoint, authenticated with the
++   existing Mapa token; never expose device tokens, usernames, IPs, or MACs. */
++app.get("/internal/mapa-devices", async (req, res) => {
++  try {
++    const remote = String(req.socket?.remoteAddress || "");
++    if (remote !== "127.0.0.1" && remote !== "::1" && remote !== "::ffff:127.0.0.1") {
++      return res.status(403).json({ ok: false });
++    }
++    const secret = (await fs.readFile("/opt/enfoque-control-center3d/private/read-token", "utf8")).trim();
++    const received = Buffer.from(sha256Text(String(req.get("authorization") || "")), "hex");
++    const expected = Buffer.from(sha256Text("Bearer " + secret), "hex");
++    if (!timingSafeEqual(received, expected)) return res.status(401).json({ ok: false });
++    const approved = await readJsonFile(PC_DEVICES_FILE, {});
++    const assignedStores = await readJsonFile("/opt/intranet-data/ti-assistente/device-stores.json", {});
++    const nowMs = Date.now();
++    const combined = new Map();
++    const rank = { online: 3, offline: 2, unknown: 1 };
++    for (const [deviceId, meta] of Object.entries(approved)) {
++      if (!meta || typeof meta !== "object") continue;
++      const rawHost = String(meta.hostname || "").trim();
++      const hostnameKey = rawHost.split(" / ")[0].toLowerCase().trim() || deviceId;
++      // Dedupe multiple transport agents of the same physical computer.
++      const key = /^(desktop|desktop-system|DESKTOP-H0OS7DS)/i.test(deviceId) ? "desktop-extra" :
++                  /^(notebook|notebook-system)/i.test(deviceId) ? "notebook-escritorio" : hostnameKey;
++      const parts = rawHost.split(/\s*\/\s*/);
++      const mappedStore = String(assignedStores[deviceId] || "").trim();
++      let store = mappedStore || (parts.length > 1 ? parts[1].trim() : "");
++      const displayName = String(meta.displayName || "").trim();
++      if (!store) store = /escrit[oó]rio|notebook/i.test(displayName) ? "Escritório" :
++                           /extra/i.test(displayName) ? "Extra" : "Sem loja";
++      // Use readable names only, never raw serials or remote-access numbers.
++      let name = parts[0].replace(/^Enfoque OS\s+[\d-]+\s*/i, "").trim();
++      if (/salao.ilha/i.test(name)) name = "Salão - Ilha";
++      if (/bancada.ilha/i.test(name)) name = "Bancada - Ilha";
++      if (/^DESKTOP-|^enfoque-/i.test(name)) name = displayName ? "Computador " + displayName : "Estação Linux";
++      if (/^escritorio-/i.test(name)) name = "Notebook do Escritório";
++      name = name.replace(/\bAnyDesk\b.*$/i,"").trim() || "Computador";
++      const rt = pcRuntime.get(deviceId);
++      const socket = pcSockets.get(deviceId);
++      const lastMs = Date.parse(rt?.lastSeenAt || "");
++      const recent = Number.isFinite(lastMs) && nowMs - lastMs >= 0 && nowMs - lastMs < 100000;
++      // WebSocket liveness is authoritative; old agents may use polling.
++      const isOnline = (socket?.readyState === 1) || (rt && rt.transport !== "offline" && recent);
++      const status = isOnline ? "online" : rt ? "offline" : "unknown";
++      const candidate = {
++        id: "pet-" + sha256Text(key).slice(0, 16),
++        name: name.slice(0, 40),
++        owner: store.slice(0, 35),
++        status,
++        lastSeenAt: rt?.lastSeenAt || null
++      };
++      const prev = combined.get(key);
++      if (!prev || rank[status] > rank[prev.status]) combined.set(key,candidate);
++      else if (prev && prev.owner === "Sem loja" && candidate.owner !== "Sem loja") prev.owner = candidate.owner;
++    }
++    const devices = Array.from(combined.values()).sort((a,b) =>
++      a.owner.localeCompare(b.owner,"pt") || a.name.localeCompare(b.name,"pt")).slice(0, 35);
++    res.set("Cache-Control","no-store").json({ ok:true, checkedAt:new Date().toISOString(), devices });
++  } catch (_) {
++    res.status(503).json({ ok:false, error:"Status indisponivel" });
++  }
++});
++
+ app.post("/internal/pc-control", async (req, res) => {
+   try {
+     const remote = String(req.socket?.remoteAddress || "");

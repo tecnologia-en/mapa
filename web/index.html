@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#0f1724">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23162e32'/%3E%3Ctext x='32' y='46' text-anchor='middle' font-size='43' font-family='serif' fill='%23adebbd'%3EE%3C/text%3E%3C/svg%3E">
   <meta name="description" content="Enfoque Mapa — Control Center 3D">
   <title>Mapa | Enfoque Control Center</title>
   <link rel="stylesheet" href="/assets/style.css">
@@ -12,26 +13,13 @@
 <div class="shell">
   <header class="topbar">
     <div class="branding"><span class="brand-icon">E<span class="brand-dot"></span></span><div><strong>ENFOQUE</strong><small>CONTROL CENTER <em>3D</em></small></div></div>
-    <div class="top-tabs"><span class="top-tab active">◈ &nbsp; Mapa</span><span class="top-tab mute">◌ &nbsp; Visão geral</span></div>
-    <div class="head-right"><span class="version-label">PROTÓTIPO · V0.1</span><span class="head-pill" id="connectionPill"><i></i><span id="connectionText">Aguardando início</span></span></div>
+    <div class="top-tabs"><span class="top-tab active">◈ &nbsp; Mapa ao vivo</span><button id="headerOverview" class="top-tab top-button" title="Mostrar todas as equipes">⌂ &nbsp; Visão geral</button></div>
+    <div class="head-right"><span class="version-label">MAPA · V0.2</span><span class="head-pill" id="connectionPill"><i></i><span id="connectionText">Conectando...</span></span></div>
   </header>
 
-  <section id="welcome" class="welcome">
-    <div class="welcome-grid"></div>
-    <div class="orbital-art" aria-hidden="true"><div class="ring one"></div><div class="ring two"></div><div class="ring three"></div><div class="floating-chip main">▦<span>ENFOQUE OS</span></div><div class="floating-chip small">⌘<span>INFRAESTRUTURA</span></div><div class="art-glow"></div></div>
-    <div class="welcome-copy">
-      <span class="overline"><span class="line"></span> SEU UNIVERSO TECNOLÓGICO</span>
-      <h1>Por trás de cada<br>projeto, <span>um mundo.</span></h1>
-      <p>Um escritório em miniatura onde cada personagem tem uma função real. Entre, explore as salas e acompanhe o que mantém a Enfoque funcionando.</p>
-      <button class="start-btn" id="startBtn"><span class="play-triangle">▶</span> INICIAR EXPERIÊNCIA <span class="start-arrow">↗</span></button>
-      <p class="welcome-caption">01. APERTE INICIAR &nbsp; · &nbsp; 02. EXPLORE O ESCRITÓRIO &nbsp; · &nbsp; 03. CONHEÇA SUA EQUIPE</p>
-      <p id="startError" class="error" role="alert" hidden></p>
-    </div>
-    <div class="welcome-footer"><span>UMA NOVA FORMA DE ORGANIZAR SUA TI</span><span>DESENVOLVIDO PARA EVOLUIR &nbsp; ✧</span></div>
-  </section>
-
-  <main id="workspace" class="workspace" hidden>
-    <aside class="left-panel">
+  <main id="workspace" class="workspace">
+    <aside class="left-panel" id="leftPanel">
+      <div class="sidebar-toolbar"><button id="sidebarToggle" class="sidebar-toggle" type="button" aria-label="Recolher barra lateral" aria-expanded="true" title="Recolher ou expandir menu">☰</button><span class="sidebar-toolbar-copy"><strong>EXPLORADOR</strong><small>Salas & equipes</small></span><span class="sidebar-toolbar-pill">LIVE</span></div>
       <div class="side-title"><span class="small-label">SEUS AMBIENTES</span><h2>Explorar escritório<span class="glow-dot">.</span></h2><p>Clique numa sala ou funcionário.</p></div>
       <div class="search-wrap"><span aria-hidden="true">⌕</span><input type="search" id="search" placeholder="Buscar personagem…" aria-label="Buscar personagem"><kbd>/</kbd></div>
       <div class="mini-heading"><span>SALAS DO PRÉDIO</span><span id="roomCount">02</span></div>
@@ -39,28 +27,31 @@
       <div class="side-separator"></div>
       <div class="mini-heading"><span>EQUIPE</span><span id="personCount">06</span></div>
       <div id="personNav" class="person-nav"></div>
+      <details class="pets-accordion" id="petsAccordion"><summary><span class="pet-nav-icon">♧</span><span class="pet-nav-label">PETS DOS COMPUTADORES</span><b id="petCount">0</b></summary><div id="petGroupList" class="pet-group-list"></div></details>
       <div class="left-foot"><span class="live-mark">◌</span><span id="leftFootText">Monitoramento somente leitura</span></div>
     </aside>
 
     <div class="world-container">
       <div id="scene" class="world-scene" aria-label="Escritório 3D navegável"></div>
-      <div class="world-head"><div><span class="small-label">AMBIENTE TRIDIMENSIONAL</span><h2 id="worldTitle">Escritório Enfoque</h2></div><div class="scene-tag">✦ &nbsp; VISUALIZAÇÃO INTERATIVA</div></div>
+      <div class="world-head"><div><span class="small-label">AMBIENTE TRIDIMENSIONAL</span><h2 id="worldTitle">Escritório Enfoque</h2></div><div class="world-head-actions"><button id="exitFocusBtn" class="exit-focus-btn" hidden>↩ &nbsp; Voltar ao prédio</button><div class="scene-tag">✦ &nbsp; VISUALIZAÇÃO INTERATIVA</div></div></div>
       <div id="tooltip" class="world-tooltip" hidden></div>
+      <div id="launchError" class="launch-error" role="alert" hidden><strong>Não foi possível carregar o escritório 3D.</strong><p id="launchErrorText"></p><button type="button" id="retryLaunchBtn">Tentar novamente</button></div>
       <div class="scene-bottom"><div class="controls-help"><span>◌ Arraste para orbitar</span><span>⊕ Scroll / pinça para zoom</span><span>⌗ Botão direito para mover</span><span>↗ Duplo clique para focar</span></div><button id="reset" class="reset-btn" title="Centralizar câmera">↺ Redefinir</button></div>
       <div class="scene-loading" id="sceneLoading" hidden><span class="loading-pulse"></span><strong>Montando seu escritório...</strong><small>Geometria 100% procedural</small></div>
     </div>
 
     <aside class="right-panel">
       <div class="inspector-head"><span class="small-label">EXPLORADOR DE PROJETOS</span><div class="inspector-avatar" id="detailEmblem">✧</div><span class="inspect-tag" id="detailType">VISÃO GERAL</span><h2 id="detailTitle">Bem-vindo ao Mapa.</h2><p id="detailDescription">Explore o escritório e selecione um membro da equipe para descobrir o que ele faz.</p></div>
+      <div class="inspector-team-actions" id="teamFocusActions" hidden><button id="focusTeamBtn" class="focus-team-btn" type="button">◎ &nbsp; Focar esta equipe</button></div>
       <div class="inspector-section"><span class="small-label">STATUS REAL</span><div class="status-line"><span class="status-indicator unknown" id="detailDot"></span><strong id="detailStatus">Aguardando conexão</strong></div><p class="state-helper" id="detailChecked">Os estados só aparecem após verificação na VPS.</p></div>
       <div class="inspector-section details"><span class="small-label">DETALHES</span><div id="detailRows"></div></div>
       <div class="panel-warning"><span>◇</span><p><b>Modo protegido.</b> Este protótipo consulta estados, mas não inicia, desliga ou reinicia serviços.</p></div>
-      <button class="return-btn" id="returnBtn">← &nbsp; VOLTAR AO MENU INICIAL</button>
+      <button class="return-btn" id="returnBtn">↩ &nbsp; VISÃO GERAL DO PRÉDIO</button>
     </aside>
   </main>
-  <div class="bottom-strip" id="bottomStrip" hidden>
+  <div class="bottom-strip" id="bottomStrip">
     <div class="bottom-left"><span class="source-dot" id="sourceDot"></span><span id="sourceText">Sem dados ao vivo</span></div>
-    <div class="bottom-middle"><span class="count"><b id="activeCount">0</b> ATIVOS</span><span class="count"><b id="inactiveCount">0</b> INATIVOS</span><span class="count"><b id="unknownCount">6</b> NÃO VERIFICADOS</span></div>
+    <div class="bottom-middle"><span class="count"><b id="activeCount">0</b> ATIVOS</span><span class="count"><b id="inactiveCount">0</b> INATIVOS</span><span class="count"><b id="unknownCount">6</b> NÃO VERIFICADOS</span><span class="count pet-count-line"><b id="petsOnline">0</b> PETS ONLINE</span></div>
     <div class="bottom-right"><label for="fov">FOV</label><input id="fov" type="range" min="35" max="70" value="48" aria-label="Campo de visão da câmera"><span id="fovValue">48°</span><button id="quality" class="quality-btn" title="Alternar qualidade visual">QUALIDADE: LEVE</button></div>
   </div>
 </div>

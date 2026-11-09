@@ -2,3 +2,90 @@
 @media(max-width:1190px){.workspace{grid-template-columns:200px minmax(310px,1fr) 226px}.left-panel{padding:25px 11px 14px}.side-title h2{font-size:18px}.right-panel{padding:25px 13px}.scene-tag{display:none}.controls-help{max-width:360px}.bottom-middle{gap:9px}}
 @media(max-width:850px){.topbar{height:64px;padding:0 15px}.top-tabs,.version-label{display:none}.welcome{height:calc(100vh - 64px)}.welcome-copy{left:8%;width:85%;top:47%}.welcome h1{font-size:clamp(40px,9vw,65px);letter-spacing:-2px}.orbital-art{opacity:.22;right:-36%;width:100vw}.welcome-footer{font-size:8px}.welcome-footer span:last-child{display:none}.workspace{grid-template-columns:1fr;display:flex;flex-direction:column;overflow:auto}.world-container{height:57vh;min-height:350px;flex:none;order:1}.left-panel{order:2;padding:18px;flex:none}.side-title{display:none}.search-wrap{margin:0 0 13px}.room-nav{flex-direction:row}.room-button{min-width:170px}.side-separator{margin:14px 0}.person-nav{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;overflow:visible}.person-button{min-width:0}.left-foot{display:none}.right-panel{order:3;flex:none;padding:20px}.inspector-avatar{display:none}.bottom-strip{height:auto;padding:9px 12px;flex-wrap:wrap;gap:9px}.bottom-middle{order:3;width:100%;justify-content:center}.scene-bottom{bottom:15px}.world-head{top:15px;left:16px}.world-head h2{font-size:19px}}@media(max-width:480px){.person-nav{grid-template-columns:repeat(2,1fr)}.welcome h1{font-size:39px}.welcome-copy>p:not(.welcome-caption):not(.error){font-size:13px}.welcome-caption{font-size:8px;line-height:1.9}.controls-help{font-size:8px;max-width:190px}.scene-bottom{right:9px}.head-pill{font-size:9px}.branding strong{font-size:12px}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+
+/* v0.2 — Visual do explorador, sidebar recolhível, foco da equipe e pets */
+.top-button{background:transparent;border:0;cursor:pointer;transition:color .2s}
+.top-button:hover{color:#b8eed0}
+.sidebar-toolbar{display:flex;align-items:center;gap:10px;padding:0 3px 19px;margin-bottom:17px;border-bottom:1px solid #ffffff18;min-height:46px}
+.sidebar-toggle{width:38px;height:38px;min-width:38px;border:1px solid #a7e9bc52;background:linear-gradient(160deg,#284a4b,#1b343d);border-radius:11px;color:#d0f6db;font-size:21px;display:grid;place-items:center;transition:background .16s,transform .16s}
+.sidebar-toggle:hover{background:#34645d;transform:translateY(-1px)}
+.sidebar-toolbar-copy{display:flex;flex:1;flex-direction:column;gap:4px;white-space:nowrap}
+.sidebar-toolbar-copy strong{font-size:10px;font-weight:800;letter-spacing:1.7px;color:#e3f6e6}
+.sidebar-toolbar-copy small{font-size:10px;color:#819ca8}
+.sidebar-toolbar-pill{font-size:8px;letter-spacing:1px;background:#8adeaf20;color:#a2efb8;border:1px solid #a6deb650;border-radius:30px;padding:5px 7px;font-weight:800}
+.room-button{transition:background .2s,transform .2s,border-color .2s}
+.room-button:hover{transform:translateX(2px)}
+.room-button.selected{box-shadow:inset 3px 0 #a2e5b9,0 4px 13px #08182120}
+.room-button.selected .room-swatch{background:#8cd1aa2e}
+.room-button .chev{font-size:18px}
+.person-button.selected{box-shadow:inset 3px 0 #b9ddc2}
+.workspace{transition:grid-template-columns .24s ease}
+.workspace.sidebar-collapsed{grid-template-columns:65px minmax(390px,1fr) 276px}
+.sidebar-collapsed .left-panel{padding:25px 8px 15px;align-items:stretch}
+.sidebar-collapsed .sidebar-toolbar{padding:0 4px 15px;justify-content:center}
+.sidebar-collapsed .sidebar-toolbar-copy,.sidebar-collapsed .sidebar-toolbar-pill,
+.sidebar-collapsed .side-title,.sidebar-collapsed .search-wrap,
+.sidebar-collapsed .mini-heading,.sidebar-collapsed .side-separator,
+.sidebar-collapsed .left-foot,.sidebar-collapsed .room-button .nav-copy,
+.sidebar-collapsed .room-button .chev,.sidebar-collapsed .person-button .nav-copy,
+.sidebar-collapsed .person-button .tiny-state,.sidebar-collapsed .pet-nav-label,
+.sidebar-collapsed .pets-accordion b,.sidebar-collapsed .pet-group-list{display:none!important}
+.sidebar-collapsed .room-nav,.sidebar-collapsed .person-nav{display:flex;flex-direction:column;align-items:center;gap:7px;overflow:visible}
+.sidebar-collapsed .room-button,.sidebar-collapsed .person-button{justify-content:center;padding:6px;width:48px;min-width:48px;height:48px;margin:0}
+.sidebar-collapsed .room-swatch{height:35px;width:35px}
+.sidebar-collapsed .person-avatar{height:30px;width:30px}
+.sidebar-collapsed .pets-accordion{margin:9px auto 0;border:none;padding:0;max-height:none}
+.sidebar-collapsed .pets-accordion summary{justify-content:center;height:45px;padding:0 9px}
+.sidebar-collapsed .pets-accordion summary:after{display:none}
+.sidebar-collapsed .pets-accordion[open] .pet-group-list{display:none}
+.pets-accordion{margin:12px 0 0;padding:8px 2px 2px;border-top:1px solid #ffffff15;flex:none;max-height:245px;overflow:auto}
+.pets-accordion summary{cursor:pointer;list-style:none;display:flex;gap:8px;align-items:center;padding:9px 8px;border-radius:9px;color:#aad7c4;font-weight:800;font-size:9px;letter-spacing:.65px}
+.pets-accordion summary::-webkit-details-marker{display:none}
+.pets-accordion summary:hover{background:#223b42}
+.pets-accordion summary:after{content:"⌄";color:#b2c6bf;margin-left:auto}
+.pets-accordion[open] summary:after{content:"⌃"}
+.pet-nav-icon{font-size:21px;font-weight:400;color:#a5dfb5}
+.pets-accordion summary b{background:#28493f;color:#bcf3cb;border-radius:7px;padding:3px 6px;font-size:10px}
+.pet-group-list{display:flex;flex-direction:column;gap:10px;padding:4px 5px 11px;max-height:185px;overflow:auto}
+.pet-store{display:flex;flex-direction:column;gap:3px}
+.pet-store-head{display:flex;justify-content:space-between;align-items:center;margin:4px 2px 3px;padding-bottom:5px;border-bottom:1px solid #ffffff12;gap:8px}
+.pet-store-head strong{font-size:10px;color:#beddd0;font-weight:750}
+.pet-store-head span{color:#849fac;font-size:9px}
+.pet-group-button{display:flex;gap:7px;align-items:center;width:100%;border:1px solid transparent;background:#ffffff05;color:#d6e6e2;border-radius:8px;text-align:left;padding:6px 6px}
+.pet-group-button:hover,.pet-group-button.selected{border-color:#7bd4ae6a;background:#8bdfb215}
+.pet-emoji{font-size:14px}
+.pet-label{font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}
+.pet-empty{color:#9ab4b6;line-height:1.6;font-size:10px;padding:5px 7px;margin:0}
+.world-head-actions{display:flex;align-items:center;gap:10px}
+.exit-focus-btn{border:1px solid #abecc16e;border-radius:9px;background:#234b43d9;padding:10px 13px;color:#d6f6e4;font-weight:800;font-size:10px;pointer-events:auto}
+.exit-focus-btn:hover{background:#386e59}
+.inspector-team-actions{padding:0 0 19px}
+.focus-team-btn{width:100%;border:1px solid #b2e7c476;background:linear-gradient(100deg,#a4eac2,#7fccb6);color:#193a34;font-size:11px;font-weight:900;letter-spacing:.65px;border-radius:10px;padding:13px 9px;box-shadow:0 9px 22px #77dfbb19;transition:transform .16s,box-shadow .16s}
+.focus-team-btn:hover{transform:translateY(-1px);box-shadow:0 9px 22px #77dfbb4c}
+.focus-team-btn.is-focused{background:#234237;color:#c8f6db}
+.launch-error{position:absolute;z-index:9;top:50%;left:50%;transform:translate(-50%,-50%);width:min(460px,90%);background:#1a2c39;border:1px solid #f9ad9075;border-radius:15px;padding:22px;box-shadow:0 30px 75px #0008;line-height:1.7}
+.launch-error strong{font-size:15px;color:#ffe0d3}
+.launch-error p{font-size:12px;color:#bacdd2}
+.launch-error button{border:none;border-radius:8px;background:#9de3bc;color:#16342d;padding:10px 15px;font-weight:750}
+.scene-loading{z-index:6}
+.bottom-strip .pet-count-line{padding-left:12px;border-left:1px solid #ffffff19}
+.pet-count-line b{color:#a5f4be}
+@media(max-width:1190px){
+  .workspace.sidebar-collapsed{grid-template-columns:65px minmax(310px,1fr) 226px}
+  .sidebar-toolbar-pill{display:none}
+  .sidebar-toolbar-copy strong{font-size:9px}
+}
+@media(max-width:850px){
+  .workspace.sidebar-collapsed{display:flex;flex-direction:column}
+  .sidebar-collapsed .left-panel{height:auto;min-height:58px;padding:9px 14px}
+  .sidebar-collapsed .sidebar-toolbar{margin:0;padding:0;border:none}
+  .sidebar-collapsed .room-nav,.sidebar-collapsed .person-nav,.sidebar-collapsed .pets-accordion{display:none}
+  .sidebar-collapsed .sidebar-toolbar-copy{display:flex!important}
+  .sidebar-toolbar{margin-bottom:10px;padding-bottom:9px}
+  .room-nav{overflow:auto}
+  .pet-group-list{max-height:130px}
+  .world-head-actions{max-width:55%}
+  .exit-focus-btn{padding:8px 10px}
+  .world-container{height:62vh;min-height:390px}
+}

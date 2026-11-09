@@ -1,0 +1,25 @@
+[Unit]
+Description=Enfoque Control Center 3D - Read Only API
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/enfoque-control-center3d
+ExecStart=/usr/bin/python3 -B /opt/enfoque-control-center3d/server.py
+Restart=on-failure
+RestartSec=4
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+CapabilityBoundingSet=
+AmbientCapabilities=
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
