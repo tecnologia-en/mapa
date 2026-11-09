@@ -1,0 +1,76 @@
+# Fase 1: duas salas e monitoramento real de 6 serviços allowlisted na VPS.
+# Nenhum serviço nesta lista pode ser iniciado/parado pelo Mapa.
+version: 1
+rooms:
+  - id: enfoque-os
+    name: Enfoque OS
+    description: Núcleo do sistema operacional, agentes e autenticação.
+    accent: "#a79bff"
+    floor: wood
+    people:
+      - id: os-core
+        name: Núcleo Enfoque OS
+        job: Chefe • Sistema principal
+        description: Serviço central de acesso remoto do ambiente Enfoque OS.
+        kind: chief
+        check_id: enfoque-os-remote
+        outfit: suit
+        hair: quiff
+        skin: "#dfa87f"
+        shirt: "#4a587d"
+      - id: os-agent
+        name: Agente de TI
+        job: Funcionário • API de agentes
+        description: API que integra os agentes e seus registros.
+        kind: employee
+        check_id: enfoque-agent-api
+        outfit: hoodie
+        hair: curly
+        skin: "#a77355"
+        shirt: "#78c7b6"
+      - id: os-login
+        name: Autenticação
+        job: Funcionário • Login
+        description: Serviço de autenticação da plataforma Enfoque OS.
+        kind: employee
+        check_id: enfoque-os-oidc
+        outfit: shirt
+        hair: bun
+        skin: "#e9c3a6"
+        shirt: "#c4a2e9"
+  - id: infraestrutura
+    name: Infraestrutura
+    description: Serviços compartilhados da VPS que sustentam os outros projetos.
+    accent: "#79cfb8"
+    floor: tiles
+    people:
+      - id: infra-proxy
+        name: Nginx
+        job: Chefe • Proxy e HTTPS
+        description: Encaminha as conexões HTTPS para as aplicações.
+        kind: chief
+        check_id: nginx
+        outfit: suit
+        hair: side
+        skin: "#b78065"
+        shirt: "#3f6871"
+      - id: infra-mcp
+        name: Gateway MCP
+        job: Funcionário • Integrações
+        description: Serviço de integração administrativa e controle autorizado.
+        kind: employee
+        check_id: chatgpt-mcp
+        outfit: hoodie
+        hair: short
+        skin: "#e5ae85"
+        shirt: "#df9d71"
+      - id: infra-vpn
+        name: Monitor VPN
+        job: Funcionário • Conectividade
+        description: Monitoramento da conectividade das unidades.
+        kind: employee
+        check_id: enfoque-vpn-monitor
+        outfit: shirt
+        hair: waves
+        skin: "#8f5c47"
+        shirt: "#6fa6c8"
