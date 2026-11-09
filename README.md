@@ -5,7 +5,7 @@ Fase 1: duas salas, seis personagens cartoon 100% procedurais, câmera orbital l
 ## Executar no Windows
 
 1. Na Área de Trabalho, abra a pasta Mapa clonada deste repositório.
-2. Dê dois cliques em **Iniciar Mapa.bat**. O script prepara automaticamente as bibliotecas Python dentro de .venv (somente na primeira vez), inicia o FastAPI em http://127.0.0.1:8765 e abre o navegador.
+2. Dê dois cliques em **Iniciar Mapa.bat**. O script prepara automaticamente as bibliotecas Python dentro de .venv (somente na primeira vez), inicia o FastAPI em http://127.0.0.1:47831 e abre o navegador.
 3. Na tela de boas-vindas, clique em **INICIAR EXPERIÊNCIA** para entrar no escritório 3D.
 4. Arraste para orbitar; use scroll ou pinça para zoom; botão direito ou Shift+arrastar para pan; duplo clique para focar. No rodapé, ajuste o FOV e a qualidade.
 5. Para encerrar, feche a janela do prompt aberta pelo .bat. **O programa não inicia com o Windows.**
@@ -22,7 +22,7 @@ Não use git reset --hard para atualizar, e não altere o código da cópia loca
 
 ## Estrutura
 
-- backend/app.py: FastAPI local em 127.0.0.1:8765, REST e WebSocket com atualização a cada 8 segundos.
+- backend/app.py: FastAPI local em 127.0.0.1:47831, REST e WebSocket com atualização a cada 8 segundos.
 - config/projects.yaml: salas, personagens, roupas e identificadores dos serviços.
 - web/index.html: tela inicial e painel de inspeção.
 - web/assets/character.js: corpos, rosto, roupas, cabelo, acessórios, expressões e animações gerados por código. Não usa BoxGeometry em personagens.

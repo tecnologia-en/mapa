@@ -240,7 +240,7 @@ export function createCharacter(T, definition, options = {}) {
       item.eye.scale.y=Math.max(.06,blink);
       item.eyebrow.rotation.z=current==="failed"?item.side*.28:0;
     }
-    statusOrbit.scale.setScalar(current==="failed"?1+Math.sin(t*5)*.19:1+.08*Math.sin(t*1.3));
+    statusOrbit.scale.setScalar(.18*(current==="failed"?1+Math.sin(t*5)*.19:1+.08*Math.sin(t*1.3)));
   }
   return{root,update,setStatus,get status(){return current},id:p.id};
 }

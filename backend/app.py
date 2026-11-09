@@ -21,7 +21,7 @@ from fastapi.staticfiles import StaticFiles
 
 ROOT = Path(__file__).resolve().parent.parent
 WEB = ROOT / "web"
-PORT = 8765
+PORT = 47831
 CFG = ROOT / "config" / "projects.yaml"
 SECRETS = ROOT / "config.local.json"
 CACHE_TTL = 5.0
@@ -115,7 +115,7 @@ async def security_headers(req, call_next):
     result.headers["Cache-Control"] = "no-store"
     result.headers["Content-Security-Policy"] = (
         "default-src 'self'; script-src 'self'; worker-src 'self'; style-src 'self'; "
-        "img-src 'self' data: blob:; connect-src 'self' ws://127.0.0.1:8765 ws://localhost:8765; "
+        "img-src 'self' data: blob:; connect-src 'self' ws://127.0.0.1:47831 ws://localhost:47831; "
         "font-src 'self'; object-src 'none'; base-uri 'none'"
     )
     return result
@@ -134,7 +134,7 @@ async def health():
 @app.websocket("/ws")
 async def ws(websocket: WebSocket):
     origin = websocket.headers.get("origin", "")
-    if origin and origin not in ("http://127.0.0.1:8765", "http://localhost:8765"):
+    if origin and origin not in ("http://127.0.0.1:47831", "http://localhost:47831"):
         await websocket.close(code=1008)
         return
     await websocket.accept()
@@ -150,7 +150,7 @@ async def ws(websocket: WebSocket):
 async def open_client_after_start():
     # O .bat abre o navegador APENAS ao iniciar manualmente o programa.
     if os.environ.get("MAPA_OPEN_BROWSER", "1") != "0":
-        asyncio.get_running_loop().call_later(1.0, lambda: webbrowser.open("http://127.0.0.1:8765/"))
+        asyncio.get_running_loop().call_later(1.0, lambda: webbrowser.open("http://127.0.0.1:47831/"))
 
 
 app.mount("/assets", StaticFiles(directory=WEB / "assets"), name="assets")
@@ -165,7 +165,7 @@ def main():
     print("\n" + "=" * 54)
     print("       ENFOQUE MAPA - CONTROL CENTER 3D")
     print("=" * 54)
-    print("Interface local: http://127.0.0.1:8765")
+    print("Interface local: http://127.0.0.1:47831")
     print("Conexao de leitura com a VPS. Nenhum comando sera enviado.")
     print("Para encerrar: feche a janela ou pressione Ctrl+C.\n")
     try:
