@@ -1,4 +1,4 @@
-# Mapa — Enfoque Control Center 3D
+# Mapa v0.3.1 — Enfoque Control Center 3D
 
 Mapa de projetos da Enfoque, com dois andares, móveis e personagens gerados por código, e estados reais da VPS consultados somente para leitura.
 
@@ -48,3 +48,21 @@ O token privado fica somente em config.local.json, ignorado pelo Git. A integra�
 O GitHub https://github.com/tecnologia-en/mapa é a fonte oficial. Alterações são publicadas em main e atualizadas no desktop com git pull --ff-only. Testes automatizados: python -m unittest discover -s tests -v.
 
 Próximas fases: dependências, histórico SQLite e alertas; ainda não implementados.
+
+
+## Acessar no mesmo Wi-Fi (rede local)
+
+O Mapa pode ser aberto por outros aparelhos da **mesma rede doméstica** usando o navegador, sem instalar nada nesses aparelhos:
+
+- No desktop, execute manualmente Iniciar Mapa.bat (continua sem inicialização automática).
+- O terminal mostra o link de rede local: http://IP-LOCAL-DO-DESKTOP:47831
+- No celular, tablet ou outro computador conectado ao mesmo roteador/Wi-Fi, use esse link. O endereço http://127.0.0.1:47831 vale apenas para o próprio desktop.
+- A interface e a atualização em tempo real pelo WebSocket usam o mesmo host e porta automaticamente.
+- O Firewall do Windows deve permitir **entrada TCP 47831 somente em redes privadas e a partir da sub-rede local**. No desktop original foi configurada uma regra restrita ao adaptador da rede privada; não é necessário nem recomendado abrir portas no roteador.
+- Caso o roteador tenha isolamento de clientes ou Wi-Fi de convidados, a rede pode impedir que os dispositivos se enxerguem.
+- O IP do desktop pode mudar ao reiniciar o roteador. Use o novo endereço mostrado pelo Mapa ao abrir.
+- Para voltar ao modo somente-local no desktop: iniciar com a variável MAPA_LOCAL_ONLY=1 (ou remover a regra do Firewall).
+
+**Importante:** todas as pessoas que participarem dessa rede privada terão acesso de visualização aos nomes das lojas, computadores e estados disponíveis no Mapa. Não existe controle ou alteração de dados na API; nenhuma credencial da VPS é fornecida. Não exponha a porta por redirecionamento/NAT ou configure o roteador para acesso público.
+
+Se o botão de iniciar for acionado duas vezes, o script detecta que a porta 47831 já está em uso e não cria outra instância.

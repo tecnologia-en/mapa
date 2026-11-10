@@ -76,9 +76,31 @@ class MapaTests(unittest.TestCase):
 
     def test_read_only_local_server(self):
         app=self.source("backend/app.py")
-        self.assertIn('host="127.0.0.1"',app)
+        self.assertIn('uvicorn.run(app, host=BIND_HOST',app)
+        self.assertIn('BIND_HOST = "127.0.0.1" if os.environ.get("MAPA_LOCAL_ONLY") == "1" else "0.0.0.0"',app)
         self.assertIn('"canControl": False',app)
         self.assertNotIn('@app.post(',app)
+
+    def test_lan_only_http_and_websocket(self):
+        from backend.app import is_lan_host, is_lan_peer
+        for ip in ("127.0.0.1", "192.168.0.28", "10.1.2.3", "172.29.1.2"):
+            self.assertTrue(is_lan_peer(ip))
+            self.assertTrue(is_lan_host(ip + ":47831"))
+        self.assertTrue(is_lan_host("localhost:47831"))
+        for host in ("google.com:47831", "8.8.8.8:47831", "26.204.42.26:47831",
+                     "example.test@192.168.0.9:47831", "192.168.0.9:8000",
+                     "192.168.0.9:47831\\nInjected: test"):
+            self.assertFalse(is_lan_host(host), host)
+        for ip in ("8.8.8.8", "26.204.42.26", "example.org", "169.254.12.4"):
+            self.assertFalse(is_lan_peer(ip), ip)
+        source=self.source("backend/app.py")
+        self.assertIn('origin != "http://" + host',source)
+        self.assertIn('connect-src \'self\' ws://{host}',source)
+
+    def test_launcher_avoids_duplicate_process(self):
+        bat=self.source("Iniciar Mapa.bat")
+        self.assertIn("if not errorlevel 1 goto porta_ocupada",bat)
+        self.assertIn(":porta_ocupada",bat)
 
     def test_manual_start(self):
         bat=self.source("Iniciar Mapa.bat").lower()

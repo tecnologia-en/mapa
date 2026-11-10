@@ -65,8 +65,13 @@ if not exist "web\assets\three.module.js" (
     if errorlevel 1 goto falha
 )
 
+rem Evitar iniciar uma segunda instancia na mesma porta.
+"%APP_PY%" -c "import socket,sys; s=socket.socket(); s.settimeout(.5); occupied=s.connect_ex(('127.0.0.1',47831))==0; s.close(); sys.exit(0 if occupied else 1)" >nul 2>&1
+if not errorlevel 1 goto porta_ocupada
+
 echo.
 echo Iniciando Mapa em http://127.0.0.1:47831
+echo Outros dispositivos no mesmo Wi-Fi podem usar o endereco LAN exibido abaixo.
 echo O navegador sera aberto apos o servidor estar pronto.
 echo Para encerrar, pressione Ctrl+C ou feche esta janela.
 echo.
@@ -82,6 +87,17 @@ if not "%APP_EXIT%"=="0" (
 echo Pressione qualquer tecla para fechar esta janela...
 pause >nul
 exit /b %APP_EXIT%
+
+:: A verificacao acima evita erro de porta ocupada ao clicar novamente.
+:porta_ocupada
+echo.
+echo JA EXISTE UM PROGRAMA USANDO A PORTA 47831.
+echo O Mapa nao foi iniciado novamente.
+echo Se for o Mapa, a pagina ja deve estar em http://127.0.0.1:47831
+echo Feche a instancia anterior antes de tentar abrir outra.
+echo Pressione qualquer tecla para fechar...
+pause >nul
+exit /b 0
 
 :sem_python
 echo.

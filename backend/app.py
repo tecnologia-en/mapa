@@ -5,6 +5,8 @@ import asyncio
 import webbrowser
 import json
 import os
+import socket
+from ipaddress import IPv4Address, ip_address, ip_network
 import threading
 import time
 from datetime import datetime, timezone
@@ -22,11 +24,57 @@ from fastapi.staticfiles import StaticFiles
 ROOT = Path(__file__).resolve().parent.parent
 WEB = ROOT / "web"
 PORT = 47831
+# Mapa is read-only: listen on IPv4 LAN by default, with a local-only override.
+BIND_HOST = "127.0.0.1" if os.environ.get("MAPA_LOCAL_ONLY") == "1" else "0.0.0.0"
+_PRIVATE_NETS = tuple(ip_network(n) for n in ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"))
 CFG = ROOT / "config" / "projects.yaml"
 INTRANET_CFG = ROOT / "config" / "intranet_pages.yaml"
 SECRETS = ROOT / "config.local.json"
 CACHE_TTL = 5.0
 _ALLOWED_STATES = {"active", "inactive", "unknown", "failed", "activating", "deactivating"}
+
+def is_lan_peer(value: str | None) -> bool:
+    """Only localhost and RFC1918 IPv4 peers may read the map."""
+    try:
+        addr = ip_address(str(value or ""))
+        addr = getattr(addr, "ipv4_mapped", None) or addr
+        return addr.is_loopback or (isinstance(addr, IPv4Address)
+                                    and any(addr in net for net in _PRIVATE_NETS))
+    except ValueError:
+        return False
+
+
+def is_lan_host(value: str | None) -> bool:
+    """Reject arbitrary Host headers (DNS-rebinding protection)."""
+    if not value or any(char in value for char in "\r\n\\"):
+        return False
+    try:
+        url = urlsplit("http://" + value)
+        return (url.port in (None, PORT)
+                and not url.username and not url.password
+                and url.path in ("", "/") and not url.query and not url.fragment
+                and (url.hostname == "localhost" or is_lan_peer(url.hostname)))
+    except ValueError:
+        return False
+
+
+def discover_lan_ip() -> str | None:
+    """Find a shareable LAN IP without sending any network packet."""
+    try:
+        candidates = socket.gethostbyname_ex(socket.gethostname())[2]
+    except OSError:
+        candidates = []
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            sock.connect(("192.0.2.1", 9))
+            candidates.append(sock.getsockname()[0])
+    except OSError:
+        pass
+    for candidate in candidates:
+        if candidate != "127.0.0.1" and is_lan_peer(candidate):
+            return candidate
+    return None
+
 
 app = FastAPI(title="Mapa Control Center", docs_url=None, redoc_url=None, openapi_url=None)
 _lock = threading.Lock()
@@ -157,7 +205,7 @@ def snapshot_uncached() -> dict:
             # Avoid returning arbitrary check configuration or secrets from YAML.
             person.pop("check", None)
     return {
-        "version": "0.3.0", "mode": "read-only", "connected": connected,
+        "version": "0.3.1", "mode": "read-only", "connected": connected,
         "checkedAt": remote.get("checkedAt") if connected else None,
         "connectionMessage": "VPS conectada, verificações reais" if connected else remote.get("error", "Sem conexão"),
         "summary": summary, "rooms": rooms,
@@ -186,13 +234,17 @@ def snapshot() -> dict:
 
 @app.middleware("http")
 async def security_headers(req, call_next):
+    host = req.headers.get("host", "")
+    if not is_lan_host(host) or not is_lan_peer(req.client.host if req.client else None):
+        return JSONResponse({"detail": "Acesso restrito a dispositivos da rede local."},
+                            status_code=403)
     result = await call_next(req)
     result.headers["X-Content-Type-Options"] = "nosniff"
     result.headers["Referrer-Policy"] = "no-referrer"
     result.headers["Cache-Control"] = "no-store"
     result.headers["Content-Security-Policy"] = (
         "default-src 'self'; script-src 'self'; worker-src 'self'; style-src 'self'; "
-        "img-src 'self' data: blob:; connect-src 'self' ws://127.0.0.1:47831 ws://localhost:47831; "
+        f"img-src 'self' data: blob:; connect-src 'self' ws://{host}; "
         "font-src 'self'; object-src 'none'; base-uri 'none'"
     )
     return result
@@ -205,13 +257,16 @@ async def get_state():
 
 @app.get("/api/health")
 async def health():
-    return {"ok": True, "mode": "read-only", "version": "0.3.0"}
+    return {"ok": True, "mode": "read-only", "version": "0.3.1"}
 
 
 @app.websocket("/ws")
 async def ws(websocket: WebSocket):
+    host = websocket.headers.get("host", "")
     origin = websocket.headers.get("origin", "")
-    if origin and origin not in ("http://127.0.0.1:47831", "http://localhost:47831"):
+    remote = websocket.client.host if websocket.client else None
+    if (not is_lan_host(host) or not is_lan_peer(remote)
+            or (origin and origin != "http://" + host)):
         await websocket.close(code=1008)
         return
     await websocket.accept()
@@ -242,11 +297,19 @@ def main():
     print("\n" + "=" * 54)
     print("       ENFOQUE MAPA - CONTROL CENTER 3D")
     print("=" * 54)
-    print("Interface local: http://127.0.0.1:47831")
+    print("Neste computador: http://127.0.0.1:47831")
+    ip = discover_lan_ip()
+    if BIND_HOST == "0.0.0.0" and ip:
+        print(f"Outros aparelhos na mesma rede: http://{ip}:47831")
+    elif BIND_HOST == "0.0.0.0":
+        print("Consulte o IPv4 da rede local com ipconfig para acessar de outro aparelho.")
+    else:
+        print("Modo restrito ao proprio computador ativado (MAPA_LOCAL_ONLY=1).")
+    print("Somente leitura. O firewall permite apenas a rede privada local.")
     print("Conexao de leitura com a VPS. Nenhum comando sera enviado.")
     print("Para encerrar: feche a janela ou pressione Ctrl+C.\n")
     try:
-        uvicorn.run(app, host="127.0.0.1", port=PORT, log_level="warning", access_log=False)
+        uvicorn.run(app, host=BIND_HOST, port=PORT, log_level="warning", access_log=False)
     except OSError as exc:
         print("Falha ao iniciar: ", exc)
 
