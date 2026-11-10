@@ -34,13 +34,6 @@ button:focus-visible,summary:focus-visible,input:focus-visible{outline:2px solid
 .panel-toggle{border:1px solid #94c4ab3c;border-radius:10px;background:#213944;display:grid;place-items:center;flex:none;width:39px;height:39px;color:#d0ecd9;font-size:19px;transition:background .17s}
 .panel-toggle:hover{background:#35544e}
 .panel-heading{display:flex;flex-direction:column;gap:2px;min-width:0;white-space:nowrap}.panel-heading strong{font-size:10px;letter-spacing:1.6px}.panel-heading small{font-size:10px;color:#849fac}
-.floor-picker{display:flex;flex-direction:column;gap:7px;margin:17px 0 15px}
-.floor-option{display:flex;align-items:center;gap:10px;text-align:left;border:1px solid transparent;background:transparent;border-radius:10px;padding:8px;transition:background .16s,border-color .16s}
-.floor-option:hover{background:#1e3840}.floor-option.active{background:#8fdab115;border-color:#9de2b04f}
-.floor-icon{width:34px;height:34px;border-radius:10px;flex:none;display:grid;place-items:center;background:#243846;color:#a3c2c1;font-size:14px;font-weight:900}
-.floor-option.active .floor-icon{background:#315f50;color:#c7f4d2}
-.nav-label{color:#d7e8e1;font-weight:750;display:flex;flex-direction:column;gap:2px;white-space:nowrap}
-.nav-label small{color:#829fac;font-size:10px;font-weight:500}
 .nav-divider{height:1px;background:#ffffff14;margin:15px 4px}
 .nav-special{width:100%;display:flex;gap:9px;align-items:center;text-align:left;background:#1a3038;border:1px solid #9adbb326;border-radius:9px;padding:11px 9px;font-size:11px;font-weight:720;color:#cae6d8}
 .nav-special:hover{background:#274944}.nav-special-icon{font-size:20px;color:#a8d6c4}
@@ -79,8 +72,6 @@ button:focus-visible,summary:focus-visible,input:focus-visible{outline:2px solid
 .left-collapsed .left-panel,.right-collapsed .right-panel{padding-left:9px;padding-right:9px}
 .left-collapsed .left-panel .panel-heading,.left-collapsed .left-expanded,.left-collapsed .nav-label{display:none}
 .left-collapsed .left-panel .panel-head{justify-content:center}
-.left-collapsed .floor-picker{align-items:center}
-.left-collapsed .floor-option{width:45px;height:45px;padding:4px;justify-content:center}
 .left-collapsed .left-mini{display:flex;flex-direction:column;align-items:center;gap:18px;color:#698c90;padding-top:13px;font-size:20px}
 .right-collapsed .right-panel .panel-heading,.right-collapsed .right-expanded{display:none}
 .right-collapsed .right-panel .panel-head{justify-content:center}
@@ -142,8 +133,13 @@ button:focus-visible,summary:focus-visible,input:focus-visible{outline:2px solid
  .connection{padding:7px;font-size:9px}
  .workspace{--left:205px;--right:215px}.workspace.left-collapsed{--left:51px}.workspace.right-collapsed{--right:49px}
  .left-panel,.right-panel{padding:10px 6px}.panel-toggle{width:35px;height:35px}.floor-icon{width:30px;height:30px}
- .left-collapsed .floor-option{width:37px;height:41px}
+
  .scene-head{top:13px;left:12px;right:10px}.scene-head h1{font-size:18px}.scene-foot{left:10px;right:10px;bottom:12px}.scene-foot>span{font-size:9px}
  .status-footer{padding:0 9px}.status-source{max-width:45%}.status-totals{gap:5px;font-size:9px}
 }
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* Acesso rápido à estante quando a lateral está recolhida. */
+.quick-shelf{width:42px;height:44px;border-radius:11px;border:1px solid #a6dbbd4a;background:#21413d;color:#c2efd0;font-size:26px;display:grid;place-items:center}
+.quick-shelf:hover{background:#36665a}
+.left-collapsed .left-mini{padding-top:19px}

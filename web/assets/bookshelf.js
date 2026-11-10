@@ -1,108 +1,157 @@
-/* Uma estante compacta: cada prateleira é uma loja; cada livro é um computador.
-   No modo frontal, roda do mouse percorre as lojas sem girar a câmera.
-   Rótulos individuais ficam invisíveis até o cursor passar sobre o livro.
-*/
+/* Estante dinâmica e leve: três prateleiras visíveis, quantas lojas existirem.
+ * Livros = computadores reais. Offline inclina, sem animação pesada.
+ */
 import * as T from "./three.module.js";
+import {planShelves,bookLean,rowWindow,VISIBLE_ROWS} from "./shelf_rules.mjs";
 
-const baseMaterial=new T.MeshStandardMaterial({color:0x716257,roughness:.79});
-const trimMaterial=new T.MeshStandardMaterial({color:0x9a8e78,roughness:.71});
-const metalMaterial=new T.MeshStandardMaterial({color:0x7ea9a1,roughness:.51});
-const materialCache=new Map();
-const bcolor=[0x8da7b6,0xa8a0be,0xbd9e84,0x88aa98,0xc7afb2,0x98b2a5];
-function paint(hex){if(!materialCache.has(hex))materialCache.set(hex,new T.MeshStandardMaterial({color:hex,roughness:.81}));return materialCache.get(hex);}
-function box(group,w,h,d,mat,x=0,y=0,z=0){
- const obj=new T.Mesh(new T.BoxGeometry(w,h,d),mat);obj.position.set(x,y,z);group.add(obj);return obj;
+const fixedMaterials={
+  wood:new T.MeshStandardMaterial({color:0x68564d,roughness:.84}),
+  shelf:new T.MeshStandardMaterial({color:0xa79b85,roughness:.75}),
+  steel:new T.MeshStandardMaterial({color:0x6b9290,roughness:.59}),
+  label:new T.MeshStandardMaterial({color:0x2a4f4c,roughness:.73}),
+  white:new T.MeshStandardMaterial({color:0xe5d9ba,roughness:.88})
+};
+const cachedMaterials=new Map();
+const coverColors=[0x8da7b6,0xb1a0c5,0xc5aa89,0x80ae9d,0xcdada3,0x8c9fba,0xb7ba92];
+function colorMaterial(hex){
+  if(!cachedMaterials.has(hex))cachedMaterials.set(hex,new T.MeshStandardMaterial({color:hex,roughness:.78}));
+  return cachedMaterials.get(hex);
 }
-function makeLabel(first,second="",scale=1.0){
- const c=document.createElement("canvas");c.width=560;c.height=130;const g=c.getContext("2d");
- g.fillStyle="rgba(20,40,47,.94)";g.beginPath();g.roundRect(4,6,552,118,16);g.fill();
- g.strokeStyle="rgba(177,229,197,.69)";g.lineWidth=2;g.stroke();
- g.textAlign="center";g.fillStyle="#effbf1";g.font="bold 41px Segoe UI,Arial";
- g.fillText(String(first).slice(0,37),280,64,515);
- if(second){g.fillStyle="#bfd5cc";g.font="600 22px Segoe UI,Arial";g.fillText(String(second).slice(0,55),280,102,520);}
- const tx=new T.CanvasTexture(c);tx.colorSpace=T.SRGBColorSpace;
- const sprite=new T.Sprite(new T.SpriteMaterial({map:tx,transparent:true,depthWrite:false,depthTest:false}));
- sprite.scale.set(2.65*scale,.62*scale,1);
- sprite.raycast=()=>{};
- return sprite;
+const shared=new Set([...Object.values(fixedMaterials)]);
+function cuboid(parent,w,h,d,material,x=0,y=0,z=0){
+  const obj=new T.Mesh(new T.BoxGeometry(w,h,d),material);
+  obj.position.set(x,y,z);parent.add(obj);return obj;
 }
-function disposeDynamic(root){
- root.traverse(o=>{
-   o.geometry?.dispose();
-   if(o.material){
-     const arr=Array.isArray(o.material)?o.material:[o.material];
-     for(const m of arr){
-       if(m===baseMaterial||m===trimMaterial||m===metalMaterial||[...materialCache.values()].includes(m))continue;
-       m.map?.dispose();m.dispose();
-     }
-   }
- });
+function makeLabel(first,second="",scale=1){
+  const canvas=document.createElement("canvas");canvas.width=672;canvas.height=150;
+  const c=canvas.getContext("2d");
+  c.fillStyle="rgba(16,36,43,.97)";c.beginPath();c.roundRect(4,6,664,140,18);c.fill();
+  c.strokeStyle="rgba(169,221,188,.65)";c.lineWidth=2;c.stroke();
+  c.fillStyle="#e6f5eb";c.textAlign="center";c.font="bold 47px Segoe UI,Arial";
+  c.fillText(String(first).slice(0,36),336,78,626);
+  if(second){c.fillStyle="#abc9c4";c.font="600 26px Segoe UI,Arial";
+    c.fillText(String(second).slice(0,48),336,122,628);}
+  const tex=new T.CanvasTexture(canvas);tex.colorSpace=T.SRGBColorSpace;
+  const sprite=new T.Sprite(new T.SpriteMaterial({map:tex,depthWrite:false,depthTest:false,transparent:true}));
+  sprite.scale.set(3.1*scale,.70*scale,1);
+  sprite.raycast=()=>{};
+  return sprite;
 }
+function freeChildren(group){
+  group.traverse(node=>{
+    node.geometry?.dispose();
+    if(!node.material)return;
+    const materials=Array.isArray(node.material)?node.material:[node.material];
+    for(const m of materials){
+      if(shared.has(m)||[...cachedMaterials.values()].includes(m))continue;
+      m.map?.dispose();m.dispose();
+    }
+  });
+  group.clear();
+}
+const BOOK_HEIGHT=.68;
+const SHELF_WIDTH=7.55;
+const ROW_GAP=1.32;
+function rowBottom(i){return .62+(VISIBLE_ROWS-1-i)*ROW_GAP;}
 export function createBookshelf(){
- const root=new T.Group();root.name="Estante de Computadores";root.userData.shelfTarget=true;
- // Parede de trás da sala Enfoque OS, sem invadir as mesas.
- root.position.set(3.65,0,-3.4);
- const main=new T.Group();root.add(main);
- const W=4.75,H=3.67,D=.65;
- box(main,W,.14,D,baseMaterial,0,.12,0);
- for(const x of [-W/2+.11,W/2-.11])box(main,.21,H,D,baseMaterial,x,H/2+.17,0);
- box(main,W,.16,D,trimMaterial,0,H+.23,0);
- box(main,W-.32,H-.08,.08,baseMaterial,0,H/2+.2,-.25);
- for(let i=0;i<6;i++){
-   const yy=.43+i*.59;
-   box(main,W-.31,.085,D,trimMaterial,0,yy,0);
-   box(main,W-.31,.020,.055,metalMaterial,0,yy+.044,D/2);
- }
- const header=makeLabel("COMPUTADORES","UM LIVRO = UM EQUIPAMENTO",1.22);
- header.position.set(0,4.33,0);root.add(header);
- const dynamic=new T.Group();root.add(dynamic);
- const bookObjects=new Map();
- const stores=new Map();
- let ordered=[],hiddenSet=new Set(),offset=0,layoutKey="",maxOffset=0;
- function render(){
-   disposeDynamic(dynamic);dynamic.clear();bookObjects.clear();stores.clear();
-   const grouped=new Map();
-   for(const pc of ordered){const key=String(pc.owner||"Sem loja");if(!grouped.has(key))grouped.set(key,[]);grouped.get(key).push(pc);}
-   const rows=[...grouped.entries()];maxOffset=Math.max(0,rows.length-5);
-   offset=Math.min(offset,maxOffset);
-   for(let i=0;i<Math.min(5,rows.length-offset);i++){
-     const [store,items]=rows[i+offset],y=.49+i*.59;
-     const storeGroup=new T.Group();storeGroup.userData.storeId=store;dynamic.add(storeGroup);stores.set(store,storeGroup);
-     const tag=makeLabel(store,(items.length)+" COMPUTADORES",.48);
-     tag.position.set(-1.62,y+.34,.43);storeGroup.add(tag);
-     // Small visible store-name plaque remains clickable even if whole store is hidden.
-     const plaque=box(storeGroup,1.19,.20,.035,metalMaterial,-1.58,y+.275,.345);
-     plaque.userData.storeId=store;
-     const showStore=!hiddenSet.has("store:"+store);
-     for(let j=0;j<Math.min(10,items.length);j++){
-       const pc=items[j],book=new T.Group();book.userData.computerId=pc.id;
-       book.position.set(-.75+j*.315,y,.16);storeGroup.add(book);
-       book.visible=showStore&&!hiddenSet.has("computer:"+pc.id);
-       const width=.145,height=.29+(j%3)*.045;
-       box(book,width,height,.255,paint(bcolor[(i+j)%bcolor.length]),0,height/2+.015,0);
-       box(book,.035,height-.03,.012,trimMaterial,-.045,height/2+.017,.14);
-       const stripe=pc.status==="online"?0x88ddab:pc.status==="offline"?0xa5b1be:0xd5be9b;
-       box(book,width+.01,.038,.26,paint(stripe),0,.040,0);
-       const caption=makeLabel(pc.name,pc.status==="online"?"ONLINE":pc.status==="offline"?"DESCONECTADO":"SEM SINAL",.62);
-       caption.position.set(0,-.31,.38);caption.visible=false;
-       book.add(caption);bookObjects.set(pc.id,{group:book,caption,pc});
-     }
-   }
- }
- function sync(input,hidden){
-   const list=Array.isArray(input)?input:[];
-   hiddenSet=new Set(hidden||[]);
-   const key=JSON.stringify(list.map(d=>[d.id,d.owner,d.status]).concat([...hiddenSet].sort()));
-   ordered=list.slice().sort((a,b)=>String(a.owner).localeCompare(String(b.owner),"pt")||String(a.name).localeCompare(String(b.name),"pt"));
-   if(key!==layoutKey){layoutKey=key;render();}
- }
- function scroll(amount){
-   const next=Math.max(0,Math.min(maxOffset,offset+Math.sign(amount)));
-   if(next!==offset){offset=next;render();return true;}return false;
- }
- function hover(id){
-   for(const [key,entry]of bookObjects)entry.caption.visible=key===id&&entry.group.visible;
- }
- function select(id){return bookObjects.get(id)||null;}
- return {root,sync,scroll,hover,select,get rowOffset(){return offset},get maxOffset(){return maxOffset},dispose(){disposeDynamic(dynamic);dynamic.clear();}};
+  const root=new T.Group();root.name="Estante de Computadores";root.userData.shelfTarget=true;
+  root.position.set(3.45,0,-3.75);
+  root.scale.setScalar(.57); // compacto no escritório; tamanho real na visão frontal
+  const structure=new T.Group();root.add(structure);
+  const W=SHELF_WIDTH,D=.77,H=4.65;
+  cuboid(structure,W+.20,.22,D+.12,fixedMaterials.wood,0,.20,0);
+  for(const x of [-W/2+.10,W/2-.10]){
+    cuboid(structure,.22,H,D,fixedMaterials.wood,x,H/2+.23,0);
+    cuboid(structure,.055,H,D+.07,fixedMaterials.steel,x,H/2+.23,.08);
+  }
+  cuboid(structure,W,.18,D+.06,fixedMaterials.wood,0,H+.25,0);
+  cuboid(structure,W-.36,H-.08,.14,fixedMaterials.wood,0,H/2+.24,-D/2+.09);
+  for(let i=0;i<VISIBLE_ROWS;i++){
+    const y=rowBottom(i);
+    cuboid(structure,W-.30,.12,D+.07,fixedMaterials.shelf,0,y-.045,0);
+    cuboid(structure,W-.30,.03,.07,fixedMaterials.steel,0,y+.010,D/2+.02);
+  }
+  const title=makeLabel("COMPUTADORES","UM LIVRO · UM COMPUTADOR",1.2);
+  title.position.set(0,5.56,0);root.add(title);
+  const rowsRoot=new T.Group();root.add(rowsRoot);
+  let progress=null,rows=[],offset=0,lastSignature="",lastHovered=null;
+  const objects=new Map();
+  const stores=new Map();
+  const scrollListeners=new Set();
+  function updateProgress(){
+    if(progress){root.remove(progress);progress.material.map?.dispose();progress.material.dispose();}
+    const info=rowWindow(rows,offset);
+    progress=makeLabel(
+      info.total ? ("LOJAS "+info.first+"–"+info.last+" / "+info.total) : "SEM LOJAS",
+      info.canNext?"ROLE PARA VER MAIS":"ÚLTIMA PRATELEIRA",.68
+    );
+    progress.position.set(0,4.88,.34);root.add(progress);
+    for(const callback of scrollListeners)callback(info);
+  }
+  function repaint(){
+    freeChildren(rowsRoot);objects.clear();stores.clear();lastHovered=null;
+    const visible=rowWindow(rows,offset);offset=visible.offset;
+    for(const [i,row]of visible.rows.entries()){
+      const y=rowBottom(i),group=new T.Group();group.userData.storeId=row.name;rowsRoot.add(group);
+      stores.set(row.name,group);
+      // Área sempre identificável, inclusive as seis lojas fixas vazias.
+      const label=makeLabel(row.name,
+        row.books.length?row.books.length+" COMPUTADOR"+(row.books.length===1?"":"ES"):"SEM COMPUTADORES",.65);
+      label.position.set(-2.61,y+.74,.49);group.add(label);
+      const clickArea=cuboid(group,1.86,.36,.045,fixedMaterials.label,-2.58,y+.69,.41);
+      clickArea.userData.storeId=row.name;
+      const n=row.books.length;
+      const left=-1.30,right=3.30;
+      const step=n>1?Math.min(.43,(right-left)/(n-1)):.43;
+      const start=n>1?left+(right-left-step*(n-1))*.15:.0;
+      for(let j=0;j<n;j++){
+        const data=row.books[j],book=new T.Group();book.userData.computerId=data.id;
+        book.position.set(start+j*step,y+.035,.21);
+        group.add(book);
+        const width=Math.min(.22,Math.max(.12,step*.60));
+        const height=BOOK_HEIGHT+(j%3)*.065;
+        book.rotation.z=bookLean(data.status,j,n);
+        cuboid(book,width,height,.28,colorMaterial(coverColors[(j+i*2)%coverColors.length]),0,height/2,0);
+        cuboid(book,.035,height-.08,.014,fixedMaterials.white,-width*.25,height/2,.147);
+        const stateColor=data.status==="online"?0x8ad4a9:data.status==="offline"?0xe5a08d:0xb1b9bc;
+        cuboid(book,width+.012,.062,.29,colorMaterial(stateColor),0,.068,0);
+        const label=makeLabel(data.name,
+          data.status==="online"?"CONECTADO":data.status==="offline"?"DESCONECTADO":"SEM SINAL",.72);
+        label.position.set(book.position.x,y+.96,.77);
+        label.visible=false;group.add(label); // horizontal, não gira junto do livro
+        objects.set(data.id,{book,label,computer:data,store:row.name});
+      }
+    }
+    updateProgress();
+  }
+  function sync(devices,hidden){
+    const nextRows=planShelves(devices,hidden);
+    const nextSignature=JSON.stringify(nextRows.map(r=>[r.name,r.books.map(b=>[b.id,b.name,b.status])]));
+    if(nextSignature===lastSignature)return;
+    rows=nextRows;lastSignature=nextSignature;
+    offset=rowWindow(rows,offset).offset;
+    repaint(); // realoca imediatamente ao ocultar a última máquina de uma loja opcional
+  }
+  function scroll(amount){
+    const next=rowWindow(rows,offset+Math.sign(amount)).offset;
+    if(next===offset)return false;
+    offset=next;repaint();return true;
+  }
+  function hover(id){
+    if(lastHovered===id)return;
+    if(lastHovered&&objects.has(lastHovered))objects.get(lastHovered).label.visible=false;
+    lastHovered=id;
+    if(id&&objects.has(id))objects.get(id).label.visible=true;
+  }
+  function onScroll(cb){scrollListeners.add(cb);return()=>scrollListeners.delete(cb);}
+  function pageInfo(){return rowWindow(rows,offset);}
+  function dispose(){
+    freeChildren(rowsRoot);
+    if(progress){root.remove(progress);progress.material.map?.dispose();progress.material.dispose();progress=null;}
+    // Título é um sprite próprio (os materiais globais são compartilhados).
+    root.remove(title);title.material.map?.dispose();title.material.dispose();
+  }
+  return {root,sync,scroll,hover,onScroll,pageInfo,dispose,
+    get rowOffset(){return offset;},get maxOffset(){return Math.max(0,rows.length-VISIBLE_ROWS);},
+    get stores(){return stores;},get books(){return objects;}};
 }

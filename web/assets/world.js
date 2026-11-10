@@ -2,7 +2,6 @@
 import * as T from "./three.module.js";
 import {createCharacter} from "./character.js";
 import {createBookshelf} from "./bookshelf.js";
-import {createIntranet} from "./intranet.js";
 
 const colors={floor:0x193644,wall:0xc4d2c8,beige:0xe9dcc0,muted:0x8fa7ad,steel:0x5d7181,wood:0x987b5f,trim:0x546b6c};
 const color=x=>new T.Color(x);
@@ -195,8 +194,8 @@ function room(group,def,idx,actorMap,walls){
  return g;
 }
 export class World {
-  constructor({mount,onSelect,onFocus,onHover}){
-    this.mount=mount;this.onSelect=onSelect;this.onFocus=onFocus;this.onHover=onHover;
+  constructor({mount,onSelect,onFocus,onHover,onShelfChange}){
+    this.mount=mount;this.onSelect=onSelect;this.onFocus=onFocus;this.onHover=onHover;this.onShelfChange=onShelfChange;
     this.scene=new T.Scene();this.scene.background=new T.Color("#1a313d");
     this.scene.fog=new T.FogExp2(0x1a313d,.009);
     this.camera=new T.PerspectiveCamera(48,1,.09,190);
@@ -210,7 +209,7 @@ export class World {
     sunlight.position.set(-10,27,22);this.scene.add(sunlight);
     const bounce=new T.DirectionalLight(0xa1cde3,1.25);
     bounce.position.set(15,19,-12);this.scene.add(bounce);
-    this.group=new T.Group();this.group.userData.floorNumber=1;this.scene.add(this.group);
+    this.group=new T.Group();this.scene.add(this.group);
     box(this.group,42,.8,27.5,0x142734,2.1,-.9,0);
     box(this.group,41.8,.25,27.3,0x607b7d,2.1,-.48,0);
     this.commons=new T.Group();this.group.add(this.commons);
@@ -218,11 +217,10 @@ export class World {
     for(let i=-5;i<=5;i++)box(this.commons,.03,.012,3.25,0x789895,8+i*.9,-.225,6.7);
     const welcome=signSprite("ENFOQUE","CONTROL CENTER","#a6e5b9");
     welcome.position.set(8,.9,6.7);this.commons.add(welcome);
-    this.makeStairs();
-    this.rooms=new Map();this.actors=new Map();this.intranet=null;
-    this.shelf=null;this.shelfHiddenRoomObjects=null;this.floorOneMaterials=new Map();this.walls=[];
+    this.rooms=new Map();this.actors=new Map();this.walls=[];
+    this.shelf=null;this.lastShelfWheelAt=0;
     this.actorDefinitions=new Map();this.hidden=new Set();this.data=null;
-    this.currentFloor=1;this.isolatedRoom=null;this.view="world";
+    this.isolatedRoom=null;this.view="world";
     this.cameraState={yaw:.56,pitch:.52,distance:49,
       target:v(0,1.2,1.2),wanted:v(0,1.2,1.2),
       wantedYaw:.56,wantedPitch:.52,wantedDistance:49};
@@ -235,30 +233,6 @@ export class World {
     this.loop(0);
   }
 
-  makeStairs(){
-    const stairs=new T.Group();stairs.userData.stairs=true;this.group.add(stairs);
-    const x=18.8,zStart=10.5,steps=15,h=.55,run=1.10;
-    const light=m(0xc0b6a2),rail=m(0x90adac,.48),side=m(0x556a73);
-    for(let i=0;i<steps;i++){
-      const y=(i+1)*h,z=zStart-i*run;
-      box(stairs,2.5,.17,run*.97,0,x,y,z,light);
-      box(stairs,.10,y,.10,0,x-1.1,y/2,z,side);
-      box(stairs,.10,y,.10,0,x+1.1,y/2,z,side);
-      if(i%3===0){
-        cyl(stairs,.055,.055,1.06,0,x-1.13,y+.58,z,rail);
-        cyl(stairs,.055,.055,1.06,0,x+1.13,y+.58,z,rail);
-      }
-    }
-    for(const sideDir of [-1,1]){
-      const points=[v(x+sideDir*1.13,.75,zStart+run),v(x+sideDir*1.13,8.75,zStart-steps*run)];
-      const c=new T.LineCurve3(points[0],points[1]);
-      mesh(new T.TubeGeometry(c,32,.067,7,false),rail,stairs);
-    }
-    const landing=beveled(stairs,3.5,2.25,.16,0x819c9a,x,8.27,zStart-(steps-1)*run-.9);
-    const tag=signSprite("ACESSO","ANDAR 02","#a8e1d0");
-    tag.scale.set(2.9,.85,1);tag.position.set(x,9.75,zStart-(steps-1)*run);stairs.add(tag);
-  }
-
   setData(data){
     this.data=data;
     if(!this.rooms.size){
@@ -268,27 +242,16 @@ export class World {
       }
       const os=this.rooms.get("enfoque-os");
       if(os){
-        this.shelf=createBookshelf();os.add(this.shelf.root);
-        this.shelf.root.userData.floorNumber=1;
+        this.shelf=createBookshelf();
+        os.add(this.shelf.root);
+        this.shelf.onScroll(info=>this.onShelfChange?.(info));
       }
-      this.intranet=createIntranet(data.intranet||[]);
-      this.scene.add(this.intranet.root);
-      this.floorOneMaterials.clear();
-      this.group.traverse(o=>{
-        const materials=o.material?(Array.isArray(o.material)?o.material:[o.material]):[];
-        for(const material of materials)if(!this.floorOneMaterials.has(material)){
-          this.floorOneMaterials.set(material,{
-            opacity:material.opacity,transparent:material.transparent,depthWrite:material.depthWrite
-          });
-        }
-      });
-      this.updateFloorVisibility();
     }
     for(const r of data.rooms||[])for(const p of r.people||[]){
       this.actorDefinitions.set(p.id,{...p,roomId:r.id,roomName:r.name});
       this.actors.get(p.id)?.setStatus(p.status||"unknown");
     }
-    this.shelf?.sync(data.computers||data.pets||[],this.hidden);
+    this.shelf?.sync(data.computers||[],this.hidden);
     this.applyHidden();
   }
 
@@ -298,130 +261,80 @@ export class World {
   }
   applyHidden(){
     for(const [id,actor]of this.actors)actor.root.visible=!this.hidden.has("person:"+id);
-    this.shelf?.sync(this.data?.computers||this.data?.pets||[],this.hidden);
-    if(this.shelf)this.shelf.root.visible=!this.hidden.has("shelf:computadores")&&
-       !this.hidden.has("room:enfoque-os") &&
-       (!this.isolatedRoom||this.isolatedRoom==="enfoque-os");
-    this.intranet?.setHidden(this.hidden);
+    this.shelf?.sync(this.data?.computers||[],this.hidden);
+    if(this.view==="shelf" && (this.hidden.has("shelf:computadores")||this.hidden.has("room:enfoque-os"))){
+      this.exitShelf();
+    }
+    if(this.shelf)this.shelf.root.visible=!this.hidden.has("shelf:computadores")
+      && !this.hidden.has("room:enfoque-os")
+      && (!this.isolatedRoom||this.isolatedRoom==="enfoque-os");
     this.applyRoomVisibility();
   }
   applyRoomVisibility(){
     for(const [id,g]of this.rooms){
-      g.visible=!this.hidden.has("room:"+id) &&
-        (!this.isolatedRoom||id===this.isolatedRoom);
+      g.visible=!this.hidden.has("room:"+id)
+        && (!this.isolatedRoom||id===this.isolatedRoom);
     }
     this.commons.visible=!this.isolatedRoom;
-    if(this.intranet){
-      const upperHidden=this.hidden.has("floor:2");
-      this.intranet.root.visible=!upperHidden&&!this.isolatedRoom;
-    }
+    // O cenário inteiro fica invisível durante a visita à estante.
+    // A estante fica reparentada diretamente à cena 3D.
+    this.group.visible=this.view!=="shelf";
   }
-  updateFloorVisibility(){
-    if(!this.intranet)return;
-    const ghostUpper=this.currentFloor===1;
-    this.intranet.setGhost(ghostUpper);
-    // O andar inferior continua reconhecível ao explorar o segundo.
-    const fade=this.currentFloor===2;
-    for(const [material,original] of this.floorOneMaterials){
-      material.opacity=fade?Math.min(.19,original.opacity):original.opacity;
-      material.transparent=fade?true:original.transparent;
-      material.depthWrite=fade?false:original.depthWrite;
-      material.needsUpdate=true;
-    }
-    this.applyRoomVisibility();
-  }
-  setFloor(number){
-    const n=Number(number);
-    if(n!==1&&n!==2)return;
-    if(this.view==="shelf")this.restoreShelfRoom();
-    this.view="world";this.isolatedRoom=null;this.currentFloor=n;
-    this.updateFloorVisibility();
-    this.reset();
-  }
-  goUpFloor(){if(this.currentFloor<2)this.setFloor(2);}
-  goDownFloor(){if(this.view==="shelf"){this.exitShelf();return;}if(this.currentFloor>1)this.setFloor(1);}
   reset(){
     const s=this.cameraState;
-    if(this.currentFloor===2){
-      s.wanted.set(0,9.8,0);s.wantedDistance=43;s.wantedYaw=.52;s.wantedPitch=.62;
-    }else{
-      s.wanted.set(0,1.2,1.2);s.wantedDistance=49;s.wantedYaw=.56;s.wantedPitch=.52;
-    }
+    s.wanted.set(0,1.2,1.2);s.wantedDistance=49;s.wantedYaw=.56;s.wantedPitch=.52;
   }
   isolateRoom(id){
-    if(id&&this.rooms.has(id)){
-      this.setFloor(1);this.isolatedRoom=id;this.applyRoomVisibility();
-      this.focus("room",id);
-    }else{
-      this.isolatedRoom=null;this.applyRoomVisibility();this.reset();
-    }
-  }
-  clearRoomForShelf(){
-    if(this.shelfHiddenRoomObjects)return;
-    const os=this.rooms.get("enfoque-os");
-    if(!os||!this.shelf)return;
-    this.shelfHiddenRoomObjects=new Map();
-    for(const child of os.children){
-      if(child===this.shelf.root)continue;
-      this.shelfHiddenRoomObjects.set(child,child.visible);
-      child.visible=false;
-    }
-  }
-  restoreShelfRoom(){
-    if(!this.shelfHiddenRoomObjects)return;
-    for(const [child,wasVisible]of this.shelfHiddenRoomObjects)child.visible=wasVisible;
-    this.shelfHiddenRoomObjects=null;
+    if(this.view==="shelf")this.exitShelf();
+    this.isolatedRoom=id&&this.rooms.has(id)?id:null;
+    this.applyRoomVisibility();
+    if(this.isolatedRoom)this.focus("room",this.isolatedRoom);
+    else this.reset();
   }
   enterShelf(){
-    if(!this.shelf)return;
-    if(this.hidden.has("shelf:computadores"))return;
-    this.currentFloor=1;
-    this.isolatedRoom="enfoque-os";
+    if(!this.shelf||this.hidden.has("shelf:computadores")||this.hidden.has("room:enfoque-os"))return;
+    if(this.view==="shelf")return;
     this.view="shelf";
-    this.updateFloorVisibility();
-    this.clearRoomForShelf();
+    this.isolatedRoom=null;
+    // Só a estante é mantida na cena; paredes, mesas, personagens e piso somem.
+    this.group.updateMatrixWorld(true);
+    this.scene.attach(this.shelf.root);
+    this.shelf.root.scale.setScalar(1);
+    this.applyRoomVisibility();
     this.shelf.root.visible=true;
     const pt=this.shelf.root.getWorldPosition(new T.Vector3());
     const s=this.cameraState;
-    s.wanted.copy(pt).add(v(0,2.0,0));
-    s.wantedYaw=0;s.wantedPitch=.035;s.wantedDistance=7.2;
+    s.wanted.copy(pt).add(v(0,2.85,0));
+    s.wantedYaw=0;s.wantedPitch=.022;s.wantedDistance=this.shelfDistance();
+    this.lastShelfWheelAt=0;
+  }
+  shelfDistance(){
+    // Evita cortar as laterais em notebooks ou celulares com tela estreita.
+    const aspect=Math.max(.45,this.camera.aspect);
+    const radians=this.camera.fov*Math.PI/180;
+    return Math.max(9.4,(7.85*.5)/(Math.tan(radians*.5)*aspect)*1.12);
   }
   exitShelf(){
     if(this.view!=="shelf")return;
-    this.restoreShelfRoom();
+    const os=this.rooms.get("enfoque-os");
+    if(os&&this.shelf){
+      this.scene.updateMatrixWorld(true);
+      os.attach(this.shelf.root);
+      this.shelf.root.position.set(3.45,0,-3.75);
+      this.shelf.root.scale.setScalar(.57);
+    }
     this.view="world";
-    this.isolatedRoom=null;this.applyRoomVisibility();
+    this.isolatedRoom=null;
+    this.applyRoomVisibility();
     this.applyHidden();
     this.focus("room","enfoque-os");
   }
   focus(kind,id){
-    if(this.view==="shelf"&&!["shelf","store","computer"].includes(kind))this.exitShelf();
     if(kind==="shelf"||kind==="store"||kind==="computer"){
       this.enterShelf();return;
     }
-    if(kind==="department"){
-      this.setFloor(2);
-      const sector=this.intranet?.sectors.get(id);
-      if(sector){
-        const pt=sector.getWorldPosition(new T.Vector3());
-        this.cameraState.wanted.copy(pt).add(v(0,1.5,0));
-        this.cameraState.wantedDistance=16;
-      }
-      return;
-    }
-    if(kind==="page"){
-      this.setFloor(2);
-      const pg=this.intranet?.pages.get(id);
-      if(pg){
-        const pt=pg.position.getWorldPosition(new T.Vector3());
-        this.cameraState.wanted.copy(pt).add(v(0,1.4,0));
-        this.cameraState.wantedDistance=9.6;
-        this.cameraState.wantedPitch=.71;
-      }
-      return;
-    }
+    if(this.view==="shelf")this.exitShelf();
     if(kind==="room"){
-      if(this.currentFloor!==1)this.setFloor(1);
       const group=this.rooms.get(id);if(!group)return;
       const pt=group.getWorldPosition(new T.Vector3());
       this.cameraState.wanted.copy(pt).add(v(0,1.2,0));
@@ -429,26 +342,29 @@ export class World {
       return;
     }
     if(kind==="person"||kind==="seat"){
-      if(this.currentFloor!==1)this.setFloor(1);
       const actor=this.actors.get(id);if(!actor)return;
       const pt=actor.root.getWorldPosition(new T.Vector3());
       this.cameraState.wanted.copy(pt).add(v(0,1.7,0));
       this.cameraState.wantedDistance=10;
     }
   }
-  fov(val){this.camera.fov=Math.max(35,Math.min(70,Number(val)||48));this.camera.updateProjectionMatrix();}
+  fov(val){
+    this.camera.fov=Math.max(35,Math.min(70,Number(val)||48));
+    this.camera.updateProjectionMatrix();
+    if(this.view==="shelf")this.cameraState.wantedDistance=this.shelfDistance();
+  }
   setQuality(high){this.low=!high;this.renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,high?1.4:1));this.resize();}
   resize(){
     const w=Math.max(this.mount.clientWidth,1),h=Math.max(this.mount.clientHeight,1);
     this.camera.aspect=w/h;this.camera.updateProjectionMatrix();this.renderer.setSize(w,h,false);
+    if(this.view==="shelf")this.cameraState.wantedDistance=this.shelfDistance();
   }
   eventPick(e){
     if(!this.data)return null;
     const rect=this.dom.getBoundingClientRect();
     this.mouse.set((e.clientX-rect.left)/rect.width*2-1,-((e.clientY-rect.top)/rect.height*2-1));
     this.raycaster.setFromCamera(this.mouse,this.camera);
-    const targets=this.view==="shelf"?[this.shelf?.root].filter(Boolean):
-      this.currentFloor===2?[this.intranet.root]:[this.group];
+    const targets=this.view==="shelf"?[this.shelf?.root].filter(Boolean):[this.group];
     const hits=this.raycaster.intersectObjects(targets,true);
     for(const hit of hits){
       let obj=hit.object;
@@ -456,11 +372,9 @@ export class World {
         const u=obj.userData;
         if(u.computerId)return{kind:"computer",id:u.computerId};
         if(u.storeId)return{kind:"store",id:u.storeId};
-        if(u.pageId)return{kind:"page",id:u.pageId};
         if(u.personId)return{kind:"person",id:u.personId};
         if(u.seatId)return{kind:"seat",id:u.seatId};
         if(u.shelfTarget)return{kind:"shelf",id:"computadores"};
-        if(u.departmentId)return{kind:"department",id:u.departmentId};
         if(u.roomId)return{kind:"room",id:u.roomId};
         obj=obj.parent;
       }
@@ -519,7 +433,14 @@ export class World {
     });
     canvas.addEventListener("wheel",e=>{
       e.preventDefault();
-      if(this.view==="shelf"){this.shelf?.scroll(e.deltaY);return;}
+      if(this.view==="shelf"){
+        const now=performance.now();
+        if(now-this.lastShelfWheelAt>140){
+          this.shelf?.scroll(e.deltaY);
+          this.lastShelfWheelAt=now;
+        }
+        return;
+      }
       const s=this.cameraState;s.wantedDistance=Math.max(6,Math.min(85,s.wantedDistance*(e.deltaY>0?1.09:.91)));
     },{passive:false});
   }
@@ -533,7 +454,7 @@ export class World {
     s.wanted.z=Math.max(-16,Math.min(17,s.wanted.z));
   }
   wallsForCamera(){
-    if(this.currentFloor!==1)return;
+    if(this.view==="shelf")return;
     const camera=this.camera.position;
     for(const wall of this.walls){
       const center=wall.parent.getWorldPosition(new T.Vector3());
@@ -556,8 +477,7 @@ export class World {
       s.target.z+s.distance*cp*Math.cos(s.yaw));
     this.camera.lookAt(s.target);
     this.wallsForCamera();
-    if(this.currentFloor===1)for(const actor of this.actors.values())if(actor.root.visible)actor.update(this.time);
-    if(this.currentFloor===2)this.intranet?.update(this.time);
+    if(this.view!=="shelf")for(const actor of this.actors.values())if(actor.root.visible)actor.update(this.time);
     this.renderer.render(this.scene,this.camera);
   }
   dispose(){

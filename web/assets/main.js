@@ -1,4 +1,4 @@
-/* Mapa v0.3 — dois andares, sidebar única por lado, estante frontal e ocultação local.
+/* Mapa v0.4 — um andar, sidebar única por lado, estante frontal e ocultação local.
  * Nunca envia operações de gravação à VPS. */
 const $=id=>document.getElementById(id);
 const state={
@@ -8,7 +8,8 @@ const state={
 const STORAGE_KEY="enfoque-mapa-visual-hidden-v3";
 try{
   const raw=JSON.parse(window.localStorage.getItem(STORAGE_KEY)||"[]");
-  if(Array.isArray(raw))state.hidden=new Set(raw.filter(x=>typeof x==="string"&&x.length<170).slice(0,1000));
+  if(Array.isArray(raw))state.hidden=new Set(raw.filter(x=>typeof x==="string"&&x.length<170
+      && /^(person|room|computer|store|shelf):/.test(x)).slice(0,1000));
 }catch(_){}
 const el=(tag,cls,txt)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(txt!==undefined)e.textContent=String(txt);return e;};
 const text=(id,txt)=>{const node=$(id);if(node)node.textContent=String(txt??"—");};
@@ -24,7 +25,7 @@ function hideKey(item){
   if(!item)return null;
   if(item.kind==="seat"||item.kind==="person")return"person:"+item.id;
   if(item.kind==="shelf")return"shelf:computadores";
-  return ["room","page","computer","store","department"].includes(item.kind)?item.kind+":"+item.id:null;
+  return ["room","computer","store"].includes(item.kind)?item.kind+":"+item.id:null;
 }
 function toggleHidden(item){
   const key=hideKey(item);if(!key)return;
@@ -39,21 +40,11 @@ function findPerson(id){
   }
   return null;
 }
-function findPage(id){
-  for(const dep of state.model?.intranet||[]){
-    const page=(dep.pages||[]).find(p=>p.id===id);
-    if(page)return{department:dep,page};
-  }
-  return null;
-}
 function findComputer(id){return(state.model?.computers||[]).find(x=>x.id===id);}
-function findDepartment(id){return(state.model?.intranet||[]).find(x=>x.id===id);}
 function getName(item){
   if(!item)return"";
   if(item.kind==="room")return state.model?.rooms?.find(x=>x.id===item.id)?.name||"Sala";
   if(item.kind==="person"||item.kind==="seat")return findPerson(item.id)?.person?.name||"Funcionário";
-  if(item.kind==="page")return findPage(item.id)?.page?.name||"Página";
-  if(item.kind==="department")return findDepartment(item.id)?.name||"Área";
   if(item.kind==="computer")return findComputer(item.id)?.name||"Computador";
   if(item.kind==="store")return item.id;
   if(item.kind==="shelf")return"Computadores";
@@ -84,37 +75,19 @@ function navItem(name,kind,id,status){
   btn.addEventListener("click",()=>select({kind,id},true));return btn;
 }
 function renderNav(){
-  const rooms=state.model?.rooms||[],intranet=state.model?.intranet||[];
-  const roomRoot=$("roomNav"),personRoot=$("personNav"),departmentRoot=$("departmentNav");
-  roomRoot.replaceChildren();personRoot.replaceChildren();departmentRoot.replaceChildren();
+  const rooms=state.model?.rooms||[];
+  const roomRoot=$("roomNav"),personRoot=$("personNav");
+  roomRoot.replaceChildren();personRoot.replaceChildren();
   text("roomCount",rooms.length);
-  text("personCount",rooms.reduce((acc,r)=>acc+(r.people?.length||0),0));
-  text("pageCount",intranet.reduce((acc,d)=>acc+(d.pages?.length||0),0));
+  text("personCount",rooms.reduce((count,r)=>count+(r.people?.length||0),0));
   for(const room of rooms){
     roomRoot.append(navItem(room.name,"room",room.id,"unknown"));
     personRoot.append(el("div","nav-group-name",room.name));
-    for(const p of room.people||[])personRoot.append(navItem(p.name,"person",p.id,p.status));
-  }
-  for(const dep of intranet){
-    const wrapper=el("div","dept-wrap"),details=el("details");
-    const summary=el("summary");
-    summary.append(el("span","",dep.name),el("small","",(dep.pages||[]).length+" páginas"));
-    details.append(summary);
-    const pages=el("div","dept-pages");
-    const focus=el("button","","◎ Ver área "+dep.name);focus.type="button";
-    focus.addEventListener("click",()=>select({kind:"department",id:dep.id},true));
-    pages.append(focus);
-    for(const pg of dep.pages||[]){
-      const btn=el("button","",pg.name);btn.type="button";
-      btn.title=pg.name;btn.addEventListener("click",()=>select({kind:"page",id:pg.id},true));
-      pages.append(btn);
-    }
-    details.append(pages);wrapper.append(details);departmentRoot.append(wrapper);
+    for(const person of room.people||[])personRoot.append(navItem(person.name,"person",person.id,person.status));
   }
   text("computerCount",(state.model?.computers||[]).length);
   text("activeCount",state.model?.summary?.active||0);
-  renderHidden();
-  markSelection();
+  renderHidden();markSelection();
 }
 function markSelection(){
   const key=state.selected?state.selected.kind+":"+state.selected.id:"";
@@ -129,7 +102,7 @@ function meta(rows){
 function resetDetail(){
   state.selected=null;
   text("detailType","MAPA");text("detailTitle","Selecione algo");
-  text("detailDescription","Explore uma sala, uma mesa, uma área ou a estante.");
+  text("detailDescription","Explore uma sala, uma mesa ou a estante de computadores.");
   text("detailStatus","Sem seleção");
   $("detailDot").className="status-circle unknown";
   $("focusTeamBtn").hidden=true;$("hideBtn").hidden=true;
@@ -166,14 +139,6 @@ function renderDetail(item){
     const c=findComputer(item.id);if(!c){resetDetail();return;}
     type="COMPUTADOR";description="Um livro representa uma estação cadastrada no servidor.";
     status=computerStatus(c.status);rows.push(["Loja",c.owner],["Último sinal",c.lastSeenAt?new Date(c.lastSeenAt).toLocaleString("pt-BR"):"Indisponível"]);
-  }else if(item.kind==="department"){
-    const d=findDepartment(item.id);if(!d){resetDetail();return;}
-    type="ÁREA · INTRANET";description="Divisória do 2º andar, com páginas reais da Intranet.";
-    status=(d.pages||[]).length+" páginas";rows.push(["Andar","2º"]);
-  }else if(item.kind==="page"){
-    const match=findPage(item.id);if(!match){resetDetail();return;}
-    type="PÁGINA · INTRANET";description="Funcionário que representa uma página HTML existente.";
-    status="Cadastrada no mapa";rows.push(["Área",match.department.name],["Rota",match.page.path]);
   }else{resetDetail();return;}
   state.selected=item;
   text("detailType",type);text("detailTitle",name);
@@ -204,17 +169,25 @@ function setLeft(open){
   $("leftToggle").setAttribute("aria-label",state.leftOpen?"Recolher menu":"Abrir menu");
   $("leftToggle").title=state.leftOpen?"Recolher menu":"Expandir menu";
 }
+function updateShelfIndicator(info){
+  if(!state.world||state.world.view!=="shelf")return;
+  text("sceneHint",info?.total
+    ? "Prateleiras "+info.first+"–"+info.last+" de "+info.total+" · Scroll para navegar · Esc para sair"
+    : "Sem lojas cadastradas · Esc para sair");
+  text("shelfModeHint",info?.total
+    ? "▤ ESTANTE · "+info.first+"–"+info.last+" de "+info.total+" prateleiras"
+    : "▤ ESTANTE · Sem prateleiras");
+}
 function updateFloorUI(){
   const world=state.world;if(!world)return;
   const isShelf=world.view==="shelf";
-  text("floorTitle",world.currentFloor+"º ANDAR");
-  text("modeTitle",isShelf?"Estante de computadores":world.currentFloor===1?"Sistemas & Infraestrutura":"Intranet");
-  text("sceneTitle",isShelf?"Estante · Computadores":world.currentFloor===1?"Primeiro andar":"Intranet · Segundo andar");
-  text("sceneHint",isShelf?"Passe o mouse nos livros · Scroll troca a loja · Esc volta":world.currentFloor===1?"Arraste para girar · Scroll para zoom · ↑ sobe um andar":"Arraste para girar · Scroll para zoom · ↓ desce um andar");
+  text("modeTitle",isShelf?"Estante de computadores":"Sistemas & Infraestrutura");
+  text("sceneTitle",isShelf?"Estante · Computadores":"Escritório Enfoque");
+  if(isShelf)updateShelfIndicator(world.shelf?.pageInfo());
+  else text("sceneHint","Arraste para girar · Scroll para zoom · Clique na estante para visualizar");
   $("shelfModeHint").hidden=!isShelf;
   $("shelfExit").hidden=!isShelf;
   $("focusExit").hidden=!world.isolatedRoom||isShelf;
-  for(const node of document.querySelectorAll("[data-floor]"))node.classList.toggle("active",Number(node.dataset.floor)===world.currentFloor);
 }
 function select(item,fly=true){
   if(!state.world||!state.model)return;
@@ -224,15 +197,11 @@ function select(item,fly=true){
   }
   renderDetail(item);setRight(true);
 }
-function goFloor(n){
-  if(!state.world)return;
-  state.world.setFloor(n);resetDetail();updateFloorUI();
-}
 function overview(){
   if(!state.world)return;
   if(state.world.view==="shelf")state.world.exitShelf();
   state.world.isolatedRoom=null;state.world.view="world";
-  state.world.updateFloorVisibility();state.world.reset();
+  state.world.applyRoomVisibility();state.world.reset();
   resetDetail();updateFloorUI();
 }
 function exitShelf(){
@@ -278,7 +247,7 @@ function websocket(){
 }
 function tooltip(item,cx,cy){
   if(!item||!state.world){$("tooltip").hidden=true;return;}
-  const now=performance.now();if(item.kind!=="computer"&&item.kind!=="page"&&item.kind!=="store"&&item.kind!=="department"&&item.kind!=="seat"&&item.kind!=="shelf"){ $("tooltip").hidden=true;return;}
+  if(item.kind!=="computer"&&item.kind!=="store"&&item.kind!=="seat"&&item.kind!=="shelf"){ $("tooltip").hidden=true;return;}
   const name=getName(item);
   const hiddenKey=hideKey(item),suffix=state.hidden.has(hiddenKey)?" · Oculto":"";
   text("tooltip",name+suffix);
@@ -298,7 +267,8 @@ async function boot(){
       mount:$("scene"),
       onSelect:item=>select(item,true),
       onFocus:item=>select(item,false),
-      onHover:tooltip
+      onHover:tooltip,
+      onShelfChange:updateShelfIndicator
     });
     state.started=true;apply(data);resetDetail();updateFloorUI();websocket();
   }catch(error){
@@ -310,10 +280,8 @@ async function boot(){
 }
 $("leftToggle").addEventListener("click",()=>setLeft(!state.leftOpen));
 $("rightToggle").addEventListener("click",()=>setRight(!state.rightOpen));
-for(const button of document.querySelectorAll("[data-floor]")){
-  button.addEventListener("click",()=>goFloor(Number(button.dataset.floor)));
-}
 $("shelfNav").addEventListener("click",()=>select({kind:"shelf",id:"computadores"},true));
+$("shelfQuick").addEventListener("click",()=>select({kind:"shelf",id:"computadores"},true));
 $("focusTeamBtn").addEventListener("click",()=>{
   const item=state.selected;if(!item||item.kind!=="room")return;
   const on=state.world?.isolatedRoom!==item.id;
@@ -332,9 +300,10 @@ $("quality").addEventListener("click",e=>{
 });
 document.addEventListener("keydown",e=>{
   if(e.altKey||e.ctrlKey||e.metaKey||["INPUT","TEXTAREA","SELECT"].includes(document.activeElement?.tagName))return;
-  if(e.key==="ArrowUp"){e.preventDefault();goFloor(2);}
-  if(e.key==="ArrowDown"){e.preventDefault();goFloor(1);}
-  if(e.key==="1"||e.key==="2"){goFloor(Number(e.key));}
+  if(state.world?.view==="shelf"&&["ArrowUp","ArrowDown"].includes(e.key)){
+    e.preventDefault();
+    state.world.shelf?.scroll(e.key==="ArrowDown"?1:-1);
+  }
   if(e.key==="Escape"){if(state.world?.view==="shelf")exitShelf();else if(state.world?.isolatedRoom)overview();}
 });
 setLeft(false);setRight(false);

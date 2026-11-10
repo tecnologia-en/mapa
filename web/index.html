@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#0e1924">
-  <meta name="description" content="Mapa 3D de projetos e páginas da Enfoque">
+  <meta name="description" content="Mapa 3D dos projetos e computadores da Enfoque">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='15' fill='%23193238'/%3E%3Ctext x='32' y='46' text-anchor='middle' font-size='43' font-family='serif' fill='%23b5ecc7'%3EE%3C/text%3E%3C/svg%3E">
   <title>Mapa — Control Center</title>
   <link rel="stylesheet" href="/assets/style.css">
@@ -13,7 +13,7 @@
 <div class="shell">
   <header class="topbar">
     <div class="brand"><span class="brand-icon">E</span><div><strong>ENFOQUE</strong><small>CONTROL CENTER <em>3D</em></small></div></div>
-    <div class="top-center"><span class="top-label">MAPA</span><span class="top-slash">/</span><strong id="floorTitle">1º ANDAR</strong><span class="top-sep"></span><span id="modeTitle">Sistemas & Infraestrutura</span></div>
+    <div class="top-center"><span class="top-label">MAPA</span><span class="top-slash">/</span><strong>ESCRITÓRIO</strong><span class="top-sep"></span><span id="modeTitle">Sistemas & Infraestrutura</span></div>
     <div id="connectionPill" class="connection"><span class="connection-dot"></span><span id="connectionText">Conectando...</span></div>
   </header>
 
@@ -22,14 +22,6 @@
       <div class="panel-head">
         <button class="panel-toggle" id="leftToggle" type="button" aria-expanded="false" aria-label="Abrir menu esquerdo" title="Expandir menu">☰</button>
         <div class="panel-heading"><strong>NAVEGAR</strong><small>Mapa de projetos</small></div>
-      </div>
-      <div class="floor-picker" aria-label="Selecionar andar">
-        <button type="button" class="floor-option active" data-floor="1" title="Ir para o 1º andar">
-          <span class="floor-icon">1</span><span class="nav-label">1º andar <small>Sistemas</small></span>
-        </button>
-        <button type="button" class="floor-option" data-floor="2" title="Ir para o 2º andar">
-          <span class="floor-icon">2</span><span class="nav-label">2º andar <small>Intranet</small></span>
-        </button>
       </div>
       <div class="left-expanded">
         <div class="nav-divider"></div>
@@ -42,23 +34,19 @@
           <summary>Equipe <b id="personCount">6</b></summary>
           <div class="nav-entries" id="personNav"></div>
         </details>
-        <details class="nav-section" id="intranetDetails">
-          <summary>Páginas da intranet <b id="pageCount">0</b></summary>
-          <div class="nav-entries" id="departmentNav"></div>
-        </details>
         <details class="nav-section hidden-section" id="hiddenDetails">
           <summary>Itens ocultos <b id="hiddenCount">0</b></summary>
           <div class="nav-entries" id="hiddenNav"></div>
         </details>
         <div class="privacy-line"><span class="mini-status"></span> Ocultação salva apenas neste navegador</div>
       </div>
-      <div class="left-mini" aria-hidden="true"><span>◈</span><span>▤</span><span>⋮</span></div>
+      <div class="left-mini"><button id="shelfQuick" class="quick-shelf" type="button" title="Ver estante de computadores" aria-label="Ver estante de computadores">▤</button></div>
     </aside>
 
     <section class="scene-area" aria-label="Mapa tridimensional">
       <div id="scene" class="scene-root"></div>
       <div class="scene-head">
-        <div><span class="scene-kicker">VISUALIZAÇÃO 3D</span><h1 id="sceneTitle">Primeiro andar</h1></div>
+        <div><span class="scene-kicker">VISUALIZAÇÃO 3D</span><h1 id="sceneTitle">Escritório Enfoque</h1></div>
         <div class="scene-actions">
           <button type="button" id="shelfExit" class="shelf-exit" hidden>← Sair da estante</button>
           <button type="button" id="focusExit" class="shelf-exit" hidden>↩ Ver todas</button>
@@ -74,7 +62,7 @@
       </div>
       <div id="sceneLoading" class="scene-loading"><span class="spinner"></span>Carregando escritório...</div>
       <div class="scene-foot">
-        <span id="sceneHint">Arraste para girar · Scroll para zoom · ↑ e ↓ trocam de andar</span>
+        <span id="sceneHint">Arraste para girar · Scroll para zoom · Clique na estante</span>
         <button type="button" id="resetView" class="reset-view" title="Voltar à visão do andar">⌖ &nbsp; Centralizar</button>
       </div>
     </section>
@@ -88,7 +76,7 @@
         <div class="inspector-intro">
           <span id="detailType" class="entity-type">MAPA</span>
           <h2 id="detailTitle">Selecione algo</h2>
-          <p id="detailDescription">Clique numa sala, funcionário, estante ou página.</p>
+          <p id="detailDescription">Clique numa sala, funcionário ou estante.</p>
         </div>
         <div class="status-bar"><span class="status-circle unknown" id="detailDot"></span><span id="detailStatus">Sem seleção</span></div>
         <div id="detailMeta" class="meta-lines"></div>

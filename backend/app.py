@@ -28,7 +28,6 @@ PORT = 47831
 BIND_HOST = "127.0.0.1" if os.environ.get("MAPA_LOCAL_ONLY") == "1" else "0.0.0.0"
 _PRIVATE_NETS = tuple(ip_network(n) for n in ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"))
 CFG = ROOT / "config" / "projects.yaml"
-INTRANET_CFG = ROOT / "config" / "intranet_pages.yaml"
 SECRETS = ROOT / "config.local.json"
 CACHE_TTL = 5.0
 _ALLOWED_STATES = {"active", "inactive", "unknown", "failed", "activating", "deactivating"}
@@ -118,26 +117,6 @@ def safe_computers(raw: object) -> list[dict]:
 _last_known_computers: list[dict] = []
 
 
-def intranet_catalogue() -> list[dict]:
-    """Public route inventory, never executes or modifies intranet pages."""
-    raw = yaml.safe_load(INTRANET_CFG.read_text(encoding="utf-8"))
-    result = []
-    for dep in raw.get("departments", [])[:12]:
-        pages = []
-        for pg in dep.get("pages", [])[:15]:
-            name = str(pg.get("name", ""))[:64]
-            route = str(pg.get("path", ""))[:95]
-            ident = str(pg.get("id", ""))[:65]
-            if not route.startswith("/") or "//" in route or ".." in route:
-                continue
-            pages.append({"id": ident, "name": name, "path": route})
-        result.append({"id": str(dep.get("id",""))[:65],
-                       "name": str(dep.get("name",""))[:70],
-                       "accent": str(dep.get("accent","#9ab8ad"))[:9],
-                       "pages": pages})
-    return result
-
-
 def remote_status() -> dict:
     """Remote side returns allowlisted service states, never credentials or process arguments."""
     try:
@@ -205,11 +184,10 @@ def snapshot_uncached() -> dict:
             # Avoid returning arbitrary check configuration or secrets from YAML.
             person.pop("check", None)
     return {
-        "version": "0.3.1", "mode": "read-only", "connected": connected,
+        "version": "0.4.0", "mode": "read-only", "connected": connected,
         "checkedAt": remote.get("checkedAt") if connected else None,
         "connectionMessage": "VPS conectada, verificações reais" if connected else remote.get("error", "Sem conexão"),
         "summary": summary, "rooms": rooms,
-        "intranet": intranet_catalogue(),
         "computers": computers,
         "computersAvailable": connected and bool(remote.get("computersAvailable")),
         "computerSummary": {
@@ -257,7 +235,7 @@ async def get_state():
 
 @app.get("/api/health")
 async def health():
-    return {"ok": True, "mode": "read-only", "version": "0.3.1"}
+    return {"ok": True, "mode": "read-only", "version": "0.4.0"}
 
 
 @app.websocket("/ws")

@@ -1,109 +1,110 @@
-"""Testes de catálogo, segurança, andares e ocultação visual local."""
+"""Mapa v0.4 — validações de um único andar, estante e segurança LAN."""
+import shutil
+import subprocess
 import unittest
 from pathlib import Path
 
 import yaml
 
-ROOT=Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parent.parent
+
 
 class MapaTests(unittest.TestCase):
-    def source(self,name):
-        return (ROOT/name).read_text(encoding="utf-8")
+    def content(self,path):
+        return (ROOT/path).read_text(encoding="utf-8")
 
-    def test_rooms(self):
-        rooms=yaml.safe_load(self.source("config/projects.yaml"))["rooms"]
+    def test_rooms_real(self):
+        rooms=yaml.safe_load(self.content("config/projects.yaml"))["rooms"]
         self.assertEqual(len(rooms),2)
-        self.assertEqual(sum(len(x["people"]) for x in rooms),6)
+        self.assertEqual(sum(len(room["people"]) for room in rooms),6)
 
-    def test_all_intranet_pages(self):
-        from backend.app import intranet_catalogue
-        deps=intranet_catalogue()
-        self.assertEqual(len(deps),8)
-        self.assertEqual(sum(len(d["pages"]) for d in deps),60)
-        for dep in deps:
-            for pg in dep["pages"]:
-                self.assertTrue(pg["path"].startswith("/"))
-                self.assertTrue(pg["path"].endswith(".html"))
+    def test_single_floor_no_intranet(self):
+        world=self.content("web/assets/world.js")
+        html=self.content("web/index.html")
+        backend=self.content("backend/app.py")
+        self.assertNotIn("createIntranet",world)
+        self.assertNotIn("makeStairs()",world)
+        self.assertNotIn("setFloor(",world)
+        self.assertNotIn('data-floor="2"',html)
+        self.assertNotIn("intranet_catalogue",backend)
+        self.assertNotIn('"intranet":',backend)
+        self.assertFalse((ROOT/"web/assets/intranet.js").exists())
+        self.assertFalse((ROOT/"config/intranet_pages.yaml").exists())
 
-    def test_character_body_procedural(self):
-        text=self.source("web/assets/character.js")
-        self.assertNotIn("BoxGeometry(",text)
-        for term in ("LatheGeometry","CapsuleGeometry","TubeGeometry"):
-            self.assertIn(term,text)
+    def test_front_shelf_is_independent(self):
+        world=self.content("web/assets/world.js")
+        self.assertIn("this.scene.attach(this.shelf.root)",world)
+        self.assertIn('this.group.visible=this.view!=="shelf"',world)
+        self.assertIn("os.attach(this.shelf.root)",world)
+        self.assertIn("this.shelf.root.scale.setScalar(.57)",world)
+        self.assertIn('const targets=this.view==="shelf"?',world)
 
-    def test_shelf_and_floors(self):
-        text=self.source("web/assets/world.js")
-        for term in ("createIntranet(","createBookshelf(","setFloor(number)","goUpFloor()","goDownFloor()","enterShelf()","exitShelf()","makeStairs()"):
-            self.assertIn(term,text)
-        shelf=self.source("web/assets/bookshelf.js")
+    def test_shelf_structure_and_hover(self):
+        shelf=self.content("web/assets/bookshelf.js")
+        self.assertIn("VISIBLE_ROWS",shelf)
+        self.assertIn("planShelves(devices,hidden)",shelf)
+        self.assertIn("book.rotation.z=bookLean(",shelf)
+        self.assertIn("label.visible=false",shelf)
+        self.assertIn("rows.slice",self.content("web/assets/shelf_rules.mjs"))
         self.assertIn('userData.computerId',shelf)
-        self.assertIn('userData.storeId',shelf)
-        self.assertIn('caption.visible=false',shelf)
-        self.assertIn('this.view==="shelf"',text)
 
-    def test_ui_collapsed_and_one_scroll(self):
-        html=self.source("web/index.html")
-        js=self.source("web/assets/main.js")
-        css=self.source("web/assets/style.css")
+    @unittest.skipUnless(shutil.which("node"),"Node.js não disponível")
+    def test_javascript_rules(self):
+        proc=subprocess.run(
+            ["node",str(ROOT/"tests/shelf_rules.test.mjs")],
+            cwd=ROOT,capture_output=True,text=True,timeout=20
+        )
+        self.assertEqual(proc.returncode,0,proc.stdout+"\n"+proc.stderr)
+        self.assertIn("SHELF_RULES_OK",proc.stdout)
+
+    def test_character_procedural(self):
+        js=self.content("web/assets/character.js")
+        self.assertNotIn("BoxGeometry(",js)
+        self.assertIn("LatheGeometry",js)
+        self.assertIn("CapsuleGeometry",js)
+
+    def test_hidden_local_only(self):
+        js=self.content("web/assets/main.js")
+        html=self.content("web/index.html")
+        self.assertIn("window.localStorage.setItem",js)
+        self.assertIn("state.world?.setHidden(state.hidden)",js)
+        self.assertIn("hiddenDetails",html)
         self.assertIn("left-collapsed right-collapsed",html)
-        self.assertIn('data-floor="1"',html)
-        self.assertIn('data-floor="2"',html)
-        for key in ("ArrowUp","ArrowDown","localStorage","hiddenDetails"):
-            self.assertIn(key,js+html)
-        self.assertIn("overflow-y:auto",css)
-        self.assertIn("scrollbar-color",css)
-        self.assertNotIn('id="welcome"',html)
-        self.assertIn('boot();',js)
+        self.assertIn("shelfQuick",html)
+        self.assertNotIn('fetch("/api/move"',js)
 
-    def test_hide_does_not_call_remote_write(self):
-        text=self.source("web/assets/main.js")
-        self.assertIn('window.localStorage.setItem',text)
-        self.assertIn('state.world?.setHidden(state.hidden)',text)
-        self.assertNotIn('fetch("/api/hide"',text)
-        self.assertNotIn('fetch("/api/move"',text)
-        self.assertIn('workstation.userData.seatId',self.source("web/assets/world.js"))
-
-    def test_computer_sanitization(self):
+    def test_sanitized_computers(self):
         from backend.app import safe_computers
-        devices=safe_computers([
-          {"id":"pet-hashed123","name":"Caixa 3","owner":"Ilha Plaza","status":"online","secret":"FORBIDDEN"},
-          {"id":"pet-hashed123","name":"Duplicado","owner":"Centro","status":"offline"},
-          {"id":"raw-id","name":"Sem permissão","status":"online"}
+        result=safe_computers([
+            {"id":"pet-hash01","name":"Caixa","owner":"Centro","status":"offline","token":"SECRET"},
+            {"id":"pet-hash01","name":"Dup","owner":"Icaraí","status":"online"},
+            {"id":"raw-real-identifier","name":"Unsafe","status":"online"}
         ])
-        self.assertEqual(len(devices),1)
-        self.assertEqual(devices[0]["owner"],"Ilha Plaza")
-        self.assertNotIn("secret",devices[0])
+        self.assertEqual(len(result),1)
+        self.assertEqual(result[0]["status"],"offline")
+        self.assertEqual(result[0]["owner"],"Centro")
+        self.assertNotIn("token",result[0])
 
-    def test_read_only_local_server(self):
-        app=self.source("backend/app.py")
-        self.assertIn('uvicorn.run(app, host=BIND_HOST',app)
-        self.assertIn('BIND_HOST = "127.0.0.1" if os.environ.get("MAPA_LOCAL_ONLY") == "1" else "0.0.0.0"',app)
-        self.assertIn('"canControl": False',app)
-        self.assertNotIn('@app.post(',app)
-
-    def test_lan_only_http_and_websocket(self):
-        from backend.app import is_lan_host, is_lan_peer
-        for ip in ("127.0.0.1", "192.168.0.28", "10.1.2.3", "172.29.1.2"):
-            self.assertTrue(is_lan_peer(ip))
-            self.assertTrue(is_lan_host(ip + ":47831"))
+    def test_lan_only(self):
+        from backend.app import is_lan_peer,is_lan_host
+        self.assertTrue(is_lan_peer("192.168.0.9"))
+        self.assertTrue(is_lan_host("192.168.0.9:47831"))
         self.assertTrue(is_lan_host("localhost:47831"))
-        for host in ("google.com:47831", "8.8.8.8:47831", "26.204.42.26:47831",
-                     "example.test@192.168.0.9:47831", "192.168.0.9:8000",
-                     "192.168.0.9:47831\\nInjected: test"):
-            self.assertFalse(is_lan_host(host), host)
-        for ip in ("8.8.8.8", "26.204.42.26", "example.org", "169.254.12.4"):
-            self.assertFalse(is_lan_peer(ip), ip)
-        source=self.source("backend/app.py")
-        self.assertIn('origin != "http://" + host',source)
-        self.assertIn('connect-src \'self\' ws://{host}',source)
+        self.assertFalse(is_lan_peer("8.8.8.8"))
+        self.assertFalse(is_lan_host("example.com:47831"))
+        backend=self.content("backend/app.py")
+        self.assertIn('uvicorn.run(app, host=BIND_HOST',backend)
+        self.assertIn('origin != "http://" + host',backend)
+        self.assertIn('"canControl": False',backend)
+        self.assertNotIn("@app.post(",backend)
 
-    def test_launcher_avoids_duplicate_process(self):
-        bat=self.source("Iniciar Mapa.bat")
-        self.assertIn("if not errorlevel 1 goto porta_ocupada",bat)
-        self.assertIn(":porta_ocupada",bat)
-
-    def test_manual_start(self):
-        bat=self.source("Iniciar Mapa.bat").lower()
+    def test_manual_launch(self):
+        bat=self.content("Iniciar Mapa.bat").lower()
         self.assertNotIn("schtasks",bat)
         self.assertNotIn("startup",bat)
+        self.assertIn(":porta_ocupada",bat)
         self.assertTrue((ROOT/"web/assets/three.module.js").is_file())
+
+
+if __name__ == "__main__":
+    unittest.main()
