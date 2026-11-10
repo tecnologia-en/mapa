@@ -25,7 +25,7 @@
       </div>
       <div class="left-expanded">
         <div class="nav-divider"></div>
-        <button type="button" id="shelfNav" class="nav-special"><span class="nav-special-icon">▤</span><span>Estante de computadores</span><span class="nav-arrow">›</span></button>
+        <button type="button" id="shelfNav" class="nav-special"><span class="nav-special-icon">▤</span><span>Computadores</span><span class="nav-arrow">›</span></button>
         <details class="nav-section" id="roomsDetails" open>
           <summary>Salas do prédio <b id="roomCount">2</b></summary>
           <div class="nav-entries" id="roomNav"></div>
@@ -40,7 +40,7 @@
         </details>
         <div class="privacy-line"><span class="mini-status"></span> Ocultação salva apenas neste navegador</div>
       </div>
-      <div class="left-mini"><button id="shelfQuick" class="quick-shelf" type="button" title="Ver estante de computadores" aria-label="Ver estante de computadores">▤</button></div>
+      <div class="left-mini"><button id="shelfQuick" class="quick-shelf" type="button" title="Ver lista de computadores" aria-label="Ver lista de computadores">▤</button></div>
     </aside>
 
     <section class="scene-area" aria-label="Mapa tridimensional">
@@ -48,12 +48,29 @@
       <div class="scene-head">
         <div><span class="scene-kicker">VISUALIZAÇÃO 3D</span><h1 id="sceneTitle">Escritório Enfoque</h1></div>
         <div class="scene-actions">
-          <button type="button" id="shelfExit" class="shelf-exit" hidden>← Sair da estante</button>
+          <button type="button" id="shelfExit" class="shelf-exit" hidden>← Voltar ao escritório</button>
           <button type="button" id="focusExit" class="shelf-exit" hidden>↩ Ver todas</button>
           <span class="scene-state" id="sceneState">● EM TEMPO REAL</span>
         </div>
       </div>
-      <div id="shelfModeHint" class="shelf-hint" hidden>▤ ESTANTE · Visão frontal · Use o scroll para trocar de loja</div>
+      <section id="computerPanel" class="computer-panel" aria-label="Lista de computadores" hidden>
+        <div class="computer-card">
+          <div class="computer-card-head">
+            <div>
+              <span class="computer-eyebrow">MONITORAMENTO</span>
+              <h2>Computadores</h2>
+            </div>
+            <span id="computerSummary" class="computer-summary">Carregando...</span>
+          </div>
+          <div class="computer-table-scroll" tabindex="0" aria-label="Role a lista de computadores">
+            <table class="computer-table">
+              <thead><tr><th scope="col">Empresa / loja</th><th scope="col">Computador</th><th scope="col">Status</th></tr></thead>
+              <tbody id="computerRows"></tbody>
+            </table>
+          </div>
+          <p class="computer-note">O status mostra a conexão do agente com a VPS, não se o computador está ligado. Clique em uma linha para ver o último sinal.</p>
+        </div>
+      </section>
       <div id="tooltip" class="scene-tooltip" hidden></div>
       <div id="launchError" class="launch-error" role="alert" hidden>
         <strong>Não foi possível montar o escritório 3D.</strong>
@@ -62,7 +79,7 @@
       </div>
       <div id="sceneLoading" class="scene-loading"><span class="spinner"></span>Carregando escritório...</div>
       <div class="scene-foot">
-        <span id="sceneHint">Arraste para girar · Scroll para zoom · Clique na estante</span>
+        <span id="sceneHint">Arraste para girar · Scroll para zoom · Clique no aviso</span>
         <button type="button" id="resetView" class="reset-view" title="Voltar à visão do andar">⌖ &nbsp; Centralizar</button>
       </div>
     </section>
@@ -76,7 +93,7 @@
         <div class="inspector-intro">
           <span id="detailType" class="entity-type">MAPA</span>
           <h2 id="detailTitle">Selecione algo</h2>
-          <p id="detailDescription">Clique numa sala, funcionário ou estante.</p>
+          <p id="detailDescription">Clique numa sala, funcionário ou aviso.</p>
         </div>
         <div class="status-bar"><span class="status-circle unknown" id="detailDot"></span><span id="detailStatus">Sem seleção</span></div>
         <div id="detailMeta" class="meta-lines"></div>

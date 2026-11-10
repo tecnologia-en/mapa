@@ -9,7 +9,7 @@ import socket
 from ipaddress import IPv4Address, ip_address, ip_network
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
@@ -31,6 +31,9 @@ CFG = ROOT / "config" / "projects.yaml"
 SECRETS = ROOT / "config.local.json"
 CACHE_TTL = 5.0
 _ALLOWED_STATES = {"active", "inactive", "unknown", "failed", "activating", "deactivating"}
+# Agentes WebSocket recebem ping a cada 45s; sinal verde exige um heartbeat recente.
+# Isso não monitora hardware, apenas a conexão do agente com o Root MCP.
+ONLINE_FRESHNESS = timedelta(seconds=150)
 
 def is_lan_peer(value: str | None) -> bool:
     """Only localhost and RFC1918 IPv4 peers may read the map."""
@@ -87,6 +90,24 @@ def projects() -> list[dict]:
     return raw["rooms"][:12]
 
 
+def normalized_agent_status(raw_status: str, last_seen: object, *, now: datetime | None = None) -> str:
+    """Nunca considerar um agente ativo sem evidência temporal recente."""
+    if raw_status not in ("online", "offline", "unknown"):
+        return "unknown"
+    if raw_status != "online":
+        return raw_status
+    if not isinstance(last_seen, str) or not last_seen:
+        return "unknown"
+    try:
+        stamp = datetime.fromisoformat(last_seen.replace("Z", "+00:00"))
+        if stamp.tzinfo is None:
+            return "unknown"
+        age = (now or datetime.now(timezone.utc)) - stamp.astimezone(timezone.utc)
+        return "online" if timedelta(seconds=-30) <= age <= ONLINE_FRESHNESS else "unknown"
+    except ValueError:
+        return "unknown"
+
+
 def safe_computers(raw: object) -> list[dict]:
     """Allow only display fields: never forward agent identifiers or credentials."""
     if not isinstance(raw, list):
@@ -101,9 +122,7 @@ def safe_computers(raw: object) -> list[dict]:
         if not computer_id.startswith("pet-") or computer_id in seen:
             continue
         seen.add(computer_id)
-        status = str(item.get("status", "unknown"))
-        if status not in ("online", "offline", "unknown"):
-            status = "unknown"
+        status = normalized_agent_status(str(item.get("status", "unknown")), item.get("lastSeenAt"))
         computers.append({
             "id": computer_id,
             "name": str(item.get("name") or "Computador")[:45],
@@ -146,12 +165,7 @@ def remote_status() -> dict:
                 "checkedAt": str(item.get("checkedAt", ""))[:64]
             }
         computers = safe_computers(data.get("devices", []))
-        if data.get("devicesAvailable") is True:
-            # Approved without active websocket/poll is disconnected from the
-            # agent network (not proof that the hardware is powered off).
-            for computer in computers:
-                if computer["status"] == "unknown":
-                    computer["status"] = "offline"
+        # Nunca converter "sem sinal" em "offline": cadastro != agente observado.
         return {"connected": True, "services": states,
                 "checkedAt": str(data.get("checkedAt", ""))[:64],
                 "computersAvailable": data.get("devicesAvailable") is True,
@@ -170,7 +184,7 @@ def snapshot_uncached() -> dict:
         _last_known_computers = remote.get("computers", [])
         computers = _last_known_computers
     else:
-        # Keep known books in view, but never show stale "online".
+        # Keep known computers in view, but never show stale "online".
         computers = [{**item, "status": "unknown"} for item in _last_known_computers]
 
     for room in rooms:
@@ -184,7 +198,7 @@ def snapshot_uncached() -> dict:
             # Avoid returning arbitrary check configuration or secrets from YAML.
             person.pop("check", None)
     return {
-        "version": "0.4.0", "mode": "read-only", "connected": connected,
+        "version": "0.5.0", "mode": "read-only", "connected": connected,
         "checkedAt": remote.get("checkedAt") if connected else None,
         "connectionMessage": "VPS conectada, verificações reais" if connected else remote.get("error", "Sem conexão"),
         "summary": summary, "rooms": rooms,
@@ -235,7 +249,7 @@ async def get_state():
 
 @app.get("/api/health")
 async def health():
-    return {"ok": True, "mode": "read-only", "version": "0.4.0"}
+    return {"ok": True, "mode": "read-only", "version": "0.5.0"}
 
 
 @app.websocket("/ws")

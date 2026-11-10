@@ -1,7 +1,7 @@
 /* Enfoque Mapa - mundo Three.js sem modelos, texturas, meshes ou assets importados. */
 import * as T from "./three.module.js";
 import {createCharacter} from "./character.js";
-import {createBookshelf} from "./bookshelf.js";
+import {createComputerPoster} from "./poster.js";
 
 const colors={floor:0x193644,wall:0xc4d2c8,beige:0xe9dcc0,muted:0x8fa7ad,steel:0x5d7181,wood:0x987b5f,trim:0x546b6c};
 const color=x=>new T.Color(x);
@@ -218,7 +218,7 @@ export class World {
     const welcome=signSprite("ENFOQUE","CONTROL CENTER","#a6e5b9");
     welcome.position.set(8,.9,6.7);this.commons.add(welcome);
     this.rooms=new Map();this.actors=new Map();this.walls=[];
-    this.shelf=null;this.lastShelfWheelAt=0;
+    this.shelf=null;
     this.actorDefinitions=new Map();this.hidden=new Set();this.data=null;
     this.isolatedRoom=null;this.view="world";
     this.cameraState={yaw:.56,pitch:.52,distance:49,
@@ -227,7 +227,7 @@ export class World {
     this.pointer=new Map();this.dragging=false;this.dragDistance=0;
     this.lastX=0;this.lastY=0;this.dragMode="orbit";this.pinchDist=0;
     this.last=0;this.time=0;this.low=true;this.playing=true;this.raf=0;
-    this.raycaster=new T.Raycaster();this.mouse=new T.Vector2();this.lastBookHover=null;
+    this.raycaster=new T.Raycaster();this.mouse=new T.Vector2();
     this.dom=this.renderer.domElement;this.events();
     this.ro=new ResizeObserver(()=>this.resize());this.ro.observe(mount);this.resize();
     this.loop(0);
@@ -242,16 +242,14 @@ export class World {
       }
       const os=this.rooms.get("enfoque-os");
       if(os){
-        this.shelf=createBookshelf();
+        this.shelf=createComputerPoster();
         os.add(this.shelf.root);
-        this.shelf.onScroll(info=>this.onShelfChange?.(info));
       }
     }
     for(const r of data.rooms||[])for(const p of r.people||[]){
       this.actorDefinitions.set(p.id,{...p,roomId:r.id,roomName:r.name});
       this.actors.get(p.id)?.setStatus(p.status||"unknown");
     }
-    this.shelf?.sync(data.computers||[],this.hidden);
     this.applyHidden();
   }
 
@@ -261,7 +259,6 @@ export class World {
   }
   applyHidden(){
     for(const [id,actor]of this.actors)actor.root.visible=!this.hidden.has("person:"+id);
-    this.shelf?.sync(this.data?.computers||[],this.hidden);
     if(this.view==="shelf" && (this.hidden.has("shelf:computadores")||this.hidden.has("room:enfoque-os"))){
       this.exitShelf();
     }
@@ -299,20 +296,18 @@ export class World {
     // Só a estante é mantida na cena; paredes, mesas, personagens e piso somem.
     this.group.updateMatrixWorld(true);
     this.scene.attach(this.shelf.root);
-    this.shelf.root.scale.setScalar(1);
     this.applyRoomVisibility();
     this.shelf.root.visible=true;
     const pt=this.shelf.root.getWorldPosition(new T.Vector3());
     const s=this.cameraState;
-    s.wanted.copy(pt).add(v(0,2.85,0));
-    s.wantedYaw=0;s.wantedPitch=.022;s.wantedDistance=this.shelfDistance();
-    this.lastShelfWheelAt=0;
+    s.wanted.copy(pt);
+    s.wantedYaw=0;s.wantedPitch=.02;s.wantedDistance=this.shelfDistance();
   }
   shelfDistance(){
     // Evita cortar as laterais em notebooks ou celulares com tela estreita.
     const aspect=Math.max(.45,this.camera.aspect);
     const radians=this.camera.fov*Math.PI/180;
-    return Math.max(9.4,(7.85*.5)/(Math.tan(radians*.5)*aspect)*1.12);
+    return Math.max(4.1,(2.55*.5)/(Math.tan(radians*.5)*aspect)*1.2);
   }
   exitShelf(){
     if(this.view!=="shelf")return;
@@ -320,8 +315,8 @@ export class World {
     if(os&&this.shelf){
       this.scene.updateMatrixWorld(true);
       os.attach(this.shelf.root);
-      this.shelf.root.position.set(3.45,0,-3.75);
-      this.shelf.root.scale.setScalar(.57);
+      this.shelf.root.position.set(4.64,2.24,-5.17);
+      this.shelf.root.scale.setScalar(1);
     }
     this.view="world";
     this.isolatedRoom=null;
@@ -382,10 +377,7 @@ export class World {
     return null;
   }
   setHovered(item){
-    if(!this.shelf)return;
-    const id=item?.kind==="computer"?item.id:null;
-    if(id===this.lastBookHover)return;
-    this.lastBookHover=id;this.shelf.hover(id);
+    // O aviso 3D não tem livros; as linhas HTML tratam o hover normalmente.
   }
   events(){
     const canvas=this.dom;
@@ -433,14 +425,7 @@ export class World {
     });
     canvas.addEventListener("wheel",e=>{
       e.preventDefault();
-      if(this.view==="shelf"){
-        const now=performance.now();
-        if(now-this.lastShelfWheelAt>140){
-          this.shelf?.scroll(e.deltaY);
-          this.lastShelfWheelAt=now;
-        }
-        return;
-      }
+      if(this.view==="shelf")return; // A lista HTML recebe a própria rolagem.
       const s=this.cameraState;s.wantedDistance=Math.max(6,Math.min(85,s.wantedDistance*(e.deltaY>0?1.09:.91)));
     },{passive:false});
   }

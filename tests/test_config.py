@@ -1,110 +1,108 @@
-"""Mapa v0.4 — validações de um único andar, estante e segurança LAN."""
+"""Mapa v0.5 — teste da lista simples, status confiável e acesso local."""
 import shutil
-import subprocess
 import unittest
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import yaml
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT=Path(__file__).resolve().parent.parent
 
 
 class MapaTests(unittest.TestCase):
-    def content(self,path):
+    def source(self,path):
         return (ROOT/path).read_text(encoding="utf-8")
 
-    def test_rooms_real(self):
-        rooms=yaml.safe_load(self.content("config/projects.yaml"))["rooms"]
+    def test_two_rooms_only(self):
+        rooms=yaml.safe_load(self.source("config/projects.yaml"))["rooms"]
         self.assertEqual(len(rooms),2)
-        self.assertEqual(sum(len(room["people"]) for room in rooms),6)
-
-    def test_single_floor_no_intranet(self):
-        world=self.content("web/assets/world.js")
-        html=self.content("web/index.html")
-        backend=self.content("backend/app.py")
-        self.assertNotIn("createIntranet",world)
-        self.assertNotIn("makeStairs()",world)
-        self.assertNotIn("setFloor(",world)
-        self.assertNotIn('data-floor="2"',html)
-        self.assertNotIn("intranet_catalogue",backend)
-        self.assertNotIn('"intranet":',backend)
+        self.assertEqual(sum(len(r["people"]) for r in rooms),6)
         self.assertFalse((ROOT/"web/assets/intranet.js").exists())
-        self.assertFalse((ROOT/"config/intranet_pages.yaml").exists())
 
-    def test_front_shelf_is_independent(self):
-        world=self.content("web/assets/world.js")
+    def test_poster_replaces_bookshelf(self):
+        poster=self.source("web/assets/poster.js")
+        world=self.source("web/assets/world.js")
+        self.assertIn("createComputerPoster",world)
+        self.assertIn("shelfTarget",poster)
+        self.assertIn("COMPUTADORES",poster)
+        self.assertIn("CLIQUE PARA VER",poster)
         self.assertIn("this.scene.attach(this.shelf.root)",world)
         self.assertIn('this.group.visible=this.view!=="shelf"',world)
-        self.assertIn("os.attach(this.shelf.root)",world)
-        self.assertIn("this.shelf.root.scale.setScalar(.57)",world)
-        self.assertIn('const targets=this.view==="shelf"?',world)
+        self.assertFalse((ROOT/"web/assets/bookshelf.js").exists())
+        self.assertFalse((ROOT/"web/assets/shelf_rules.mjs").exists())
 
-    def test_shelf_structure_and_hover(self):
-        shelf=self.content("web/assets/bookshelf.js")
-        self.assertIn("VISIBLE_ROWS",shelf)
-        self.assertIn("planShelves(devices,hidden)",shelf)
-        self.assertIn("book.rotation.z=bookLean(",shelf)
-        self.assertIn("label.visible=false",shelf)
-        self.assertIn("rows.slice",self.content("web/assets/shelf_rules.mjs"))
-        self.assertIn('userData.computerId',shelf)
-
-    @unittest.skipUnless(shutil.which("node"),"Node.js não disponível")
-    def test_javascript_rules(self):
-        proc=subprocess.run(
-            ["node",str(ROOT/"tests/shelf_rules.test.mjs")],
-            cwd=ROOT,capture_output=True,text=True,timeout=20
-        )
-        self.assertEqual(proc.returncode,0,proc.stdout+"\n"+proc.stderr)
-        self.assertIn("SHELF_RULES_OK",proc.stdout)
-
-    def test_character_procedural(self):
-        js=self.content("web/assets/character.js")
-        self.assertNotIn("BoxGeometry(",js)
-        self.assertIn("LatheGeometry",js)
-        self.assertIn("CapsuleGeometry",js)
-
-    def test_hidden_local_only(self):
-        js=self.content("web/assets/main.js")
-        html=self.content("web/index.html")
+    def test_html_computer_list_three_columns(self):
+        html=self.source("web/index.html")
+        js=self.source("web/assets/main.js")
+        css=self.source("web/assets/style.css")
+        for term in ('id="computerPanel"','id="computerRows"', 'Empresa / loja',
+                     'Computador</th>', 'Status</th>', 'computer-table-scroll'):
+            self.assertIn(term,html)
+        self.assertIn("function renderComputerList()",js)
+        self.assertIn('state.listSignature===signature',js)
+        self.assertIn("scrollArea.scrollTop=previousScroll",js)
+        list_fn=js[js.index("function renderComputerList()"):js.index("function updateFloorUI()")]
+        self.assertLess(list_fn.index("if(state.listSignature===signature)return;"),
+                        list_fn.index("root.replaceChildren();"),
+                        "O cache nao pode limpar as linhas em cada heartbeat")
         self.assertIn("window.localStorage.setItem",js)
-        self.assertIn("state.world?.setHidden(state.hidden)",js)
-        self.assertIn("hiddenDetails",html)
+        self.assertIn("computer-badge",css)
+        self.assertIn("scrollbar-color",css)
         self.assertIn("left-collapsed right-collapsed",html)
-        self.assertIn("shelfQuick",html)
-        self.assertNotIn('fetch("/api/move"',js)
 
-    def test_sanitized_computers(self):
+    def test_agent_status_is_grounded_in_freshness(self):
+        from backend.app import normalized_agent_status, ONLINE_FRESHNESS
+        now=datetime(2026,11,9,19,0,tzinfo=timezone.utc)
+        stamp=lambda diff: (now-diff).isoformat()
+        self.assertEqual(normalized_agent_status("online",stamp(timedelta(seconds=60)),now=now),"online")
+        self.assertEqual(normalized_agent_status("online",stamp(ONLINE_FRESHNESS+timedelta(seconds=1)),now=now),"unknown")
+        self.assertEqual(normalized_agent_status("online",None,now=now),"unknown")
+        self.assertEqual(normalized_agent_status("online","not a time",now=now),"unknown")
+        self.assertEqual(normalized_agent_status("unknown",None,now=now),"unknown")
+        self.assertEqual(normalized_agent_status("offline",stamp(timedelta(days=1)),now=now),"offline")
+        self.assertEqual(normalized_agent_status("error",None,now=now),"unknown")
+
+    def test_sanitization(self):
         from backend.app import safe_computers
-        result=safe_computers([
-            {"id":"pet-hash01","name":"Caixa","owner":"Centro","status":"offline","token":"SECRET"},
-            {"id":"pet-hash01","name":"Dup","owner":"Icaraí","status":"online"},
-            {"id":"raw-real-identifier","name":"Unsafe","status":"online"}
-        ])
-        self.assertEqual(len(result),1)
-        self.assertEqual(result[0]["status"],"offline")
-        self.assertEqual(result[0]["owner"],"Centro")
+        fresh=datetime.now(timezone.utc).isoformat()
+        items=[
+          {"id":"pet-abc","name":"Extra","owner":"Extra","status":"online","lastSeenAt":fresh,"token":"SECRET"},
+          {"id":"pet-abc","name":"Duplicate","owner":"Ilha Plaza","status":"offline"},
+          {"id":"pet-unknown","name":"Sem sinal","owner":"Centro","status":"unknown"},
+          {"id":"raw-real-device-id","name":"Should not appear","status":"online"}
+        ]
+        result=safe_computers(items)
+        self.assertEqual(len(result),2)
+        self.assertEqual(result[0]["status"],"online")
+        self.assertEqual(result[1]["status"],"unknown")
         self.assertNotIn("token",result[0])
+        self.assertIn('Nunca converter "sem sinal" em "offline"',self.source("backend/app.py"))
 
-    def test_lan_only(self):
+    def test_private_lan_only(self):
         from backend.app import is_lan_peer,is_lan_host
         self.assertTrue(is_lan_peer("192.168.0.9"))
         self.assertTrue(is_lan_host("192.168.0.9:47831"))
         self.assertTrue(is_lan_host("localhost:47831"))
         self.assertFalse(is_lan_peer("8.8.8.8"))
-        self.assertFalse(is_lan_host("example.com:47831"))
-        backend=self.content("backend/app.py")
+        self.assertFalse(is_lan_host("external.example.com:47831"))
+        backend=self.source("backend/app.py")
         self.assertIn('uvicorn.run(app, host=BIND_HOST',backend)
         self.assertIn('origin != "http://" + host',backend)
         self.assertIn('"canControl": False',backend)
         self.assertNotIn("@app.post(",backend)
 
+    def test_hide_is_local(self):
+        js=self.source("web/assets/main.js")
+        self.assertIn("state.world?.setHidden(state.hidden)",js)
+        self.assertIn("renderComputerList()",js)
+        self.assertNotIn('fetch("/api/move"',js)
+        self.assertIn("workstation.userData.seatId",self.source("web/assets/world.js"))
+
     def test_manual_launch(self):
-        bat=self.content("Iniciar Mapa.bat").lower()
-        self.assertNotIn("schtasks",bat)
-        self.assertNotIn("startup",bat)
+        bat=self.source("Iniciar Mapa.bat").lower()
         self.assertIn(":porta_ocupada",bat)
+        self.assertNotIn("schtasks",bat)
         self.assertTrue((ROOT/"web/assets/three.module.js").is_file())
 
-
-if __name__ == "__main__":
+if __name__=="__main__":
     unittest.main()

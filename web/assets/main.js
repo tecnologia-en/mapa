@@ -1,9 +1,9 @@
-/* Mapa v0.4 — um andar, sidebar única por lado, estante frontal e ocultação local.
+/* Mapa v0.5 — um andar, aviso de parede e lista HTML de computadores.
  * Nunca envia operações de gravação à VPS. */
 const $=id=>document.getElementById(id);
 const state={
   world:null,model:null,started:false,booting:false,ws:null,retry:null,attempt:0,lastHeartbeat:0,
-  selected:null,hidden:new Set(),rightOpen:false,leftOpen:false,hovered:null
+  selected:null,hidden:new Set(),rightOpen:false,leftOpen:false,hovered:null,listSignature:null
 };
 const STORAGE_KEY="enfoque-mapa-visual-hidden-v3";
 try{
@@ -18,7 +18,7 @@ function serviceStatus(s){return({active:"Ativo",inactive:"Inativo",failed:"Falh
 function computerStatus(s){return({online:"Agente conectado",offline:"Agente desconectado",unknown:"Sem sinal confirmado"})[s]||"Sem sinal confirmado";}
 function persistHidden(){
   try{window.localStorage.setItem(STORAGE_KEY,JSON.stringify([...state.hidden]));}catch(_){}
-  state.world?.setHidden(state.hidden);renderHidden();
+  state.world?.setHidden(state.hidden);renderHidden();renderComputerList();
   if(state.selected)renderDetail(state.selected);
 }
 function hideKey(item){
@@ -92,6 +92,8 @@ function renderNav(){
 function markSelection(){
   const key=state.selected?state.selected.kind+":"+state.selected.id:"";
   document.querySelectorAll("[data-entity]").forEach(n=>n.classList.toggle("selected",n.dataset.entity===key));
+  document.querySelectorAll("#computerRows tr[data-computer-id]").forEach(n=>
+    n.classList.toggle("selected",state.selected?.kind==="computer"&&n.dataset.computerId===state.selected.id));
 }
 function meta(rows){
   const root=$("detailMeta");root.replaceChildren();
@@ -102,7 +104,7 @@ function meta(rows){
 function resetDetail(){
   state.selected=null;
   text("detailType","MAPA");text("detailTitle","Selecione algo");
-  text("detailDescription","Explore uma sala, uma mesa ou a estante de computadores.");
+  text("detailDescription","Explore uma sala, uma mesa ou o aviso de computadores.");
   text("detailStatus","Sem seleção");
   $("detailDot").className="status-circle unknown";
   $("focusTeamBtn").hidden=true;$("hideBtn").hidden=true;
@@ -128,16 +130,16 @@ function renderDetail(item){
     status=serviceStatus(p.status);
     rows.push(["Sala",room.name],["Função",p.job]);
   }else if(item.kind==="shelf"){
-    type="ESTANTE";description="Cada prateleira representa uma loja. Cada livro representa um computador.";
+    type="LISTA";description="Computadores cadastrados, com empresa e status da conexão do agente.";
     status=(state.model.computers||[]).length+" computadores";
-    rows.push(["Andar","1º"],["Navegação","Scroll para trocar lojas"]);
+    rows.push(["Acesso","Somente leitura"]);
   }else if(item.kind==="store"){
-    type="LOJA";description="Prateleira vinculada à loja ou empresa, apenas visual.";
+    type="LOJA";description="Computadores vinculados à loja ou empresa, apenas visual.";
     const count=(state.model.computers||[]).filter(c=>c.owner===item.id).length;
     status=count+" computadores";rows.push(["Loja",item.id]);
   }else if(item.kind==="computer"){
     const c=findComputer(item.id);if(!c){resetDetail();return;}
-    type="COMPUTADOR";description="Um livro representa uma estação cadastrada no servidor.";
+    type="COMPUTADOR";description="Estado da conexão do agente remoto. O computador pode estar ligado mesmo quando o agente está desconectado.";
     status=computerStatus(c.status);rows.push(["Loja",c.owner],["Último sinal",c.lastSeenAt?new Date(c.lastSeenAt).toLocaleString("pt-BR"):"Indisponível"]);
   }else{resetDetail();return;}
   state.selected=item;
@@ -169,25 +171,67 @@ function setLeft(open){
   $("leftToggle").setAttribute("aria-label",state.leftOpen?"Recolher menu":"Abrir menu");
   $("leftToggle").title=state.leftOpen?"Recolher menu":"Expandir menu";
 }
-function updateShelfIndicator(info){
-  if(!state.world||state.world.view!=="shelf")return;
-  text("sceneHint",info?.total
-    ? "Prateleiras "+info.first+"–"+info.last+" de "+info.total+" · Scroll para navegar · Esc para sair"
-    : "Sem lojas cadastradas · Esc para sair");
-  text("shelfModeHint",info?.total
-    ? "▤ ESTANTE · "+info.first+"–"+info.last+" de "+info.total+" prateleiras"
-    : "▤ ESTANTE · Sem prateleiras");
+function renderComputerList(){
+  const root=$("computerRows");
+  if(!root)return;
+  const list=Array.isArray(state.model?.computers)?state.model.computers:[];
+  const shown=list.filter(d=>!state.hidden.has("computer:"+d.id)
+    && !state.hidden.has("store:"+d.owner))
+    .sort((a,b)=>String(a.owner||"").localeCompare(String(b.owner||""),"pt-BR")
+      ||String(a.name||"").localeCompare(String(b.name||""),"pt-BR"));
+  const signature=JSON.stringify(shown.map(d=>[d.id,d.owner,d.name,d.status,d.lastSeenAt]));
+  if(state.listSignature===signature)return;
+  state.listSignature=signature;
+  const scrollArea=root.parentElement;
+  const previousScroll=scrollArea.scrollTop;
+  const focusedId=document.activeElement?.dataset?.computerId;
+  root.replaceChildren();
+  const nOnline=shown.filter(c=>c.status==="online").length;
+  const nOffline=shown.filter(c=>c.status==="offline").length;
+  const nUnknown=shown.length-nOnline-nOffline;
+  text("computerSummary",shown.length+" visíveis · "+nOnline+" online · "+nOffline+" offline"
+    +(nUnknown?" · "+nUnknown+" sem sinal":""));
+  if(!shown.length){
+    const row=el("tr"),cell=el("td","computer-empty",
+      state.model?.connected?"Nenhum computador visível.":"Aguardando os status da VPS.");
+    cell.colSpan=3;row.append(cell);root.append(row);return;
+  }
+  for(const d of shown){
+    const row=el("tr","computer-row");
+    row.dataset.computerId=d.id;row.tabIndex=0;
+    row.setAttribute("aria-label",String(d.owner||"Sem loja")+", "+String(d.name||"Computador")+", "+computerStatus(d.status));
+    row.append(el("td","",d.owner||"Sem loja"),el("td","",d.name||"Computador"));
+    const statusCell=el("td","computer-status-cell");
+    const badge=el("span","computer-badge "+statusClass(d.status),
+      d.status==="online"?"Online":d.status==="offline"?"Offline":"Sem sinal");
+    statusCell.append(badge);row.append(statusCell);
+    if(d.lastSeenAt){
+      const last=new Date(d.lastSeenAt);
+      if(Number.isFinite(last.getTime()))row.title="Último sinal: "+last.toLocaleString("pt-BR");
+    }
+    row.addEventListener("click",()=>select({kind:"computer",id:d.id},false));
+    row.addEventListener("keydown",e=>{
+      if(e.key==="Enter"||e.key===" "){e.preventDefault();select({kind:"computer",id:d.id},false);}
+    });
+    root.append(row);
+  }
+  scrollArea.scrollTop=previousScroll;
+  if(focusedId){
+    const focused=[...root.querySelectorAll("tr[data-computer-id]")].find(r=>r.dataset.computerId===focusedId);
+    focused?.focus({preventScroll:true});
+  }
+  markSelection();
 }
 function updateFloorUI(){
   const world=state.world;if(!world)return;
-  const isShelf=world.view==="shelf";
-  text("modeTitle",isShelf?"Estante de computadores":"Sistemas & Infraestrutura");
-  text("sceneTitle",isShelf?"Estante · Computadores":"Escritório Enfoque");
-  if(isShelf)updateShelfIndicator(world.shelf?.pageInfo());
-  else text("sceneHint","Arraste para girar · Scroll para zoom · Clique na estante para visualizar");
-  $("shelfModeHint").hidden=!isShelf;
-  $("shelfExit").hidden=!isShelf;
-  $("focusExit").hidden=!world.isolatedRoom||isShelf;
+  const listing=world.view==="shelf";
+  text("modeTitle",listing?"Computadores":"Sistemas & Infraestrutura");
+  text("sceneTitle",listing?"Computadores":"Escritório Enfoque");
+  text("sceneHint",listing?"Lista de computadores · Esc para voltar":
+    "Arraste para girar · Scroll para zoom · Clique no aviso na parede");
+  $("computerPanel").hidden=!listing;
+  $("shelfExit").hidden=!listing;
+  $("focusExit").hidden=!world.isolatedRoom||listing;
 }
 function select(item,fly=true){
   if(!state.world||!state.model)return;
@@ -195,7 +239,7 @@ function select(item,fly=true){
     state.world.focus(item.kind,item.id);
     updateFloorUI();
   }
-  renderDetail(item);setRight(true);
+  renderDetail(item);setRight(item.kind!=="shelf");
 }
 function overview(){
   if(!state.world)return;
@@ -219,7 +263,7 @@ function apply(data){
   state.model=data;state.lastHeartbeat=Date.now();
   state.world.setData(data);state.world.setHidden(state.hidden);
   connection(Boolean(data.connected),data.connectionMessage);
-  renderNav();
+  renderNav();renderComputerList();
   if(state.selected)renderDetail(state.selected);else resetDetail();
   updateFloorUI();
 }
@@ -267,8 +311,7 @@ async function boot(){
       mount:$("scene"),
       onSelect:item=>select(item,true),
       onFocus:item=>select(item,false),
-      onHover:tooltip,
-      onShelfChange:updateShelfIndicator
+      onHover:tooltip
     });
     state.started=true;apply(data);resetDetail();updateFloorUI();websocket();
   }catch(error){
@@ -300,10 +343,6 @@ $("quality").addEventListener("click",e=>{
 });
 document.addEventListener("keydown",e=>{
   if(e.altKey||e.ctrlKey||e.metaKey||["INPUT","TEXTAREA","SELECT"].includes(document.activeElement?.tagName))return;
-  if(state.world?.view==="shelf"&&["ArrowUp","ArrowDown"].includes(e.key)){
-    e.preventDefault();
-    state.world.shelf?.scroll(e.key==="ArrowDown"?1:-1);
-  }
   if(e.key==="Escape"){if(state.world?.view==="shelf")exitShelf();else if(state.world?.isolatedRoom)overview();}
 });
 setLeft(false);setRight(false);

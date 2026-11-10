@@ -143,3 +143,101 @@ button:focus-visible,summary:focus-visible,input:focus-visible{outline:2px solid
 .quick-shelf{width:42px;height:44px;border-radius:11px;border:1px solid #a6dbbd4a;background:#21413d;color:#c2efd0;font-size:26px;display:grid;place-items:center}
 .quick-shelf:hover{background:#36665a}
 .left-collapsed .left-mini{padding-top:19px}
+
+
+/* v0.5 — lista minimalista de computadores, exibida ao aproximar do aviso. */
+.computer-panel{
+  position:absolute;
+  z-index:5;
+  top:78px;
+  right:clamp(12px,4vw,56px);
+  bottom:64px;
+  left:clamp(12px,4vw,56px);
+  display:flex;
+  justify-content:center;
+  pointer-events:none;
+}
+.computer-card{
+  display:flex;
+  flex-direction:column;
+  min-height:0;
+  width:min(860px,100%);
+  overflow:hidden;
+  pointer-events:auto;
+  background:#11202a;
+  border:1px solid rgba(180,209,200,.26);
+  border-radius:13px;
+  box-shadow:0 17px 65px #03101bb8;
+}
+.computer-card-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  padding:17px 22px 15px;
+  border-bottom:1px solid #ffffff1c;
+}
+.computer-eyebrow{font-size:9px;font-weight:750;letter-spacing:1.7px;color:#8fbeb3}
+.computer-card-head h2{margin:3px 0 0;font-size:23px;font-weight:750;letter-spacing:-.35px}
+.computer-summary{font-size:11px;color:#b1c6bf;text-align:right;line-height:1.6}
+.computer-table-scroll{
+  flex:1;
+  min-height:0;
+  overflow:auto;
+  overscroll-behavior:contain;
+  scrollbar-color:#759990 #1c3440;
+  scrollbar-width:thin;
+}
+.computer-table-scroll::-webkit-scrollbar{width:8px;height:8px}
+.computer-table-scroll::-webkit-scrollbar-track{background:#1c3440}
+.computer-table-scroll::-webkit-scrollbar-thumb{background:#759990;border-radius:8px}
+.computer-table{border-collapse:collapse;width:100%;text-align:left;font-size:12px}
+.computer-table th{
+  position:sticky;
+  top:0;
+  z-index:1;
+  background:#263d45;
+  color:#d0e6da;
+  font-weight:700;
+  font-size:10px;
+  letter-spacing:.3px;
+  padding:12px 20px;
+  white-space:nowrap;
+  border-bottom:1px solid #ffffff25;
+}
+.computer-table td{padding:13px 20px;border-bottom:1px solid #ffffff0f;vertical-align:middle}
+.computer-table td:nth-child(1){color:#bdcec9;width:28%}
+.computer-table td:nth-child(2){color:#edf7f1;font-weight:650;width:45%}
+.computer-table td:nth-child(3){width:27%}
+.computer-row{cursor:pointer;transition:background .14s}
+.computer-row:hover{background:#416d6338}
+.computer-row:focus-visible{outline:2px solid #a5eac0;outline-offset:-2px}
+.computer-row.selected{background:#456f634b}
+.computer-status-cell{text-align:left}
+.computer-badge{display:inline-flex;align-items:center;gap:8px;font-size:11px;font-weight:700;white-space:nowrap;color:#bfc9cb}
+.computer-badge::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:#98a6ad}
+.computer-badge.active{color:#adf0c1}.computer-badge.active::before{background:#91e9ae}
+.computer-badge.inactive{color:#e5b7a2}.computer-badge.inactive::before{background:#efa88e}
+.computer-badge.unknown{color:#bdcbd1}
+.computer-empty{text-align:center;color:#a4b9bf!important;font-weight:400!important;padding:28px 16px!important}
+.computer-note{
+  margin:0;
+  padding:12px 22px;
+  color:#9db5b5;
+  font-size:10px;
+  line-height:1.5;
+  border-top:1px solid #ffffff13;
+}
+@media(max-width:720px){
+  .computer-panel{top:71px;left:7px;right:7px;bottom:61px}
+  .computer-card-head{padding:13px 12px}
+  .computer-card-head h2{font-size:18px}
+  .computer-summary{max-width:46%;font-size:9px}
+  .computer-table th,.computer-table td{padding:10px 7px;font-size:10px}
+  .computer-table td:nth-child(1){width:30%}
+  .computer-table td:nth-child(2){width:40%}
+  .computer-table td:nth-child(3){width:30%}
+  .computer-badge{gap:4px;font-size:10px}
+  .computer-badge::before{width:6px;height:6px}
+  .computer-note{padding:9px 11px;font-size:9px}
+}
